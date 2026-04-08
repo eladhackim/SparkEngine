@@ -67,7 +67,7 @@ IMPORTANT:
 - strengths and risks should be specific and actionable
 - businessPlan fields should each be 1-2 sentences
 - elevatorPitch should be compelling and concise`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -87,7 +87,19 @@ IMPORTANT:
     if (!content) {
         throw new Error('Invalid response from Gemini API');
     }
-    const scoredIdeas = JSON.parse(content);
+    // Extract JSON from response (may be wrapped in markdown code blocks)
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```json')) {
+        jsonStr = jsonStr.slice(7);
+    }
+    else if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.slice(3);
+    }
+    if (jsonStr.endsWith('```')) {
+        jsonStr = jsonStr.slice(0, -3);
+    }
+    jsonStr = jsonStr.trim();
+    const scoredIdeas = JSON.parse(jsonStr);
     // Calculate composite score and tier for each idea
     const finalIdeas = scoredIdeas.map(idea => ({
         ...idea,

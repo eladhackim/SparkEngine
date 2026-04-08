@@ -29,7 +29,20 @@ export async function fetchPolymarketSignals(): Promise<PolymarketData> {
     throw new Error(`Polymarket API error: ${marketsResponse.status}`);
   }
 
-  const markets = await marketsResponse.json() as PolymarketMarket[];
+  const marketsData = await marketsResponse.json();
+
+  // Handle both array and object responses
+  let markets: PolymarketMarket[];
+  if (Array.isArray(marketsData)) {
+    markets = marketsData;
+  } else if (marketsData?.data && Array.isArray(marketsData.data)) {
+    markets = marketsData.data;
+  } else if (marketsData?.markets && Array.isArray(marketsData.markets)) {
+    markets = marketsData.markets;
+  } else {
+    console.log('[Polymarket] Unexpected response format:', JSON.stringify(marketsData).slice(0, 200));
+    markets = [];
+  }
 
   // Filter for relevant categories (tech, business, etc.)
   const relevantCategories = ['Technology', 'Business', 'Finance', 'Crypto', 'Science', 'AI'];

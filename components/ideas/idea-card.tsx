@@ -1,11 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { Sparkles, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScoreBadge } from './score-badge';
 import { StatusDropdown } from './status-dropdown';
+import { useSelectedIdea } from '@/providers/selected-idea-provider';
 import type { Idea, IdeaStatus } from '@/lib/types/idea';
 
 interface IdeaCardProps {
@@ -14,10 +14,10 @@ interface IdeaCardProps {
 }
 
 export function IdeaCard({ idea, onStatusChange }: IdeaCardProps) {
-  const router = useRouter();
+  const { selectIdea } = useSelectedIdea();
 
   const handleClick = () => {
-    router.push(`/${idea.id}`);
+    selectIdea(idea.id);
   };
 
   const handleStatusChange = (status: IdeaStatus) => {

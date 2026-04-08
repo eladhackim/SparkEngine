@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/providers/auth-provider';
 import { Header } from '@/components/layout/header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SelectedIdeaProvider } from '@/providers/selected-idea-provider';
+import { IdeaDetailSheet } from '@/components/ideas/idea-detail-sheet';
 
 export default function DashboardLayout({
   children,
-  detail,
 }: {
   children: React.ReactNode;
-  detail: React.ReactNode;
 }) {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
@@ -48,11 +48,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1 container px-4 sm:px-8 py-8">{children}</main>
-      {/* Parallel route for detail slide-over */}
-      {detail}
-    </div>
+    <SelectedIdeaProvider>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container px-4 sm:px-8 py-8">{children}</main>
+        {/* Detail sheet for viewing idea details */}
+        <IdeaDetailSheet />
+      </div>
+    </SelectedIdeaProvider>
   );
 }

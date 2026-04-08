@@ -127,14 +127,14 @@ async function logGenerationRun(userId, metadata) {
         .collection('generationRuns')
         .doc(metadata.runId)
         .set(runDoc);
-    // Update user's last generation run timestamp
+    // Update user's last generation run timestamp (use set with merge to handle new users)
     await db
         .collection('users')
         .doc(userId)
-        .update({
+        .set({
         lastGenerationRun: admin.firestore.FieldValue.serverTimestamp(),
         generationRunCount: admin.firestore.FieldValue.increment(1),
-    });
+    }, { merge: true });
     console.log(`[Persistence] Generation run logged`);
 }
 /**

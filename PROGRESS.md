@@ -2,11 +2,11 @@
 
 **Project**: AI-Powered Idea Generation Platform (Pipeline-First)
 **Started**: April 8, 2026
-**Last Updated**: April 8, 2026
+**Last Updated**: April 8, 2026 20:30 UTC
 
 ---
 
-## Current Phase: Phase 1 - Pipeline Infrastructure
+## Current Phase: DEPLOYED - MVP Complete
 
 ### What's Done
 - [x] Product Requirements Document (PRD) completed
@@ -17,25 +17,52 @@
   - API Contracts Spec
   - Auth & Security Spec
 
-### What's In Progress
-- [ ] Phase 1: Pipeline Infrastructure (STARTED)
-  - [ ] Firebase Functions project setup
-  - [ ] Secret Manager configuration (GROK, GEMINI, NEWS_API keys)
-  - [ ] Data source integrations
-    - [ ] X/Twitter via Grok API
-    - [ ] Polymarket API
-    - [ ] Google News API
-  - [ ] AI processing pipeline
-    - [ ] Signal analysis (Gemini)
-    - [ ] Idea generation (Gemini)
-    - [ ] Idea scoring (Gemini)
-  - [ ] Firestore persistence
-  - [ ] Cloud Scheduler (6 AM UTC daily)
+### Completed Development & Deployment
+
+- [x] Phase 1: Backend Pipeline (COMPLETE - Eliana)
+  - [x] Firebase Functions project setup (Node.js 20)
+  - [x] Data source integrations
+    - [x] X/Twitter via Grok API
+    - [x] Polymarket REST API
+    - [x] Google News API
+  - [x] AI processing pipeline
+    - [x] Signal analysis (Gemini)
+    - [x] Idea generation (Gemini)
+    - [x] Idea scoring (Gemini) + composite calculation
+  - [x] Firestore persistence (batch writes)
+  - [x] HTTP trigger (generateIdeasHttp)
+  - [x] Scheduled trigger (generateIdeasScheduled - 6 AM UTC)
+  - [x] Secret Manager configuration (GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY)
+  - [x] **DEPLOYED**: https://generateideashttp-b7kq6socsa-uc.a.run.app
+
+- [x] Phase 2: Firebase Infrastructure (COMPLETE - Roni)
+  - [x] firestore.rules - Security rules with 15 validation helpers
+  - [x] firestore.indexes.json - 10 composite indexes
+  - [x] types/firestore.ts - Complete TypeScript types
+  - [x] lib/firebase/config.ts - Firebase SDK initialization
+  - [x] firebase.json + .firebaserc - Project config
+  - [x] docs/firebase-setup.md - Setup documentation
+  - [x] **DEPLOYED**: Firestore rules & indexes live
+
+- [x] Phase 2-3: Frontend Foundation (COMPLETE - Logan)
+  - [x] Next.js 16 App Router with static export
+  - [x] shadcn/ui components (button, card, input, select, tabs, sheet, skeleton, dialog, dropdown-menu, accordion)
+  - [x] TanStack Query provider
+  - [x] Auth pages (login, signup)
+  - [x] Dashboard components
+    - [x] IdeaCard, IdeaGrid, ScoreBadge, StatusDropdown
+    - [x] GenerateButton, GenerationProgress
+    - [x] StatusTabs, SortDropdown
+    - [x] Header
+    - [x] IdeaDetailSheet (refactored for static export)
+  - [x] Hooks (use-ideas, use-filters)
+  - [x] Firebase client integration
+  - [x] Client-side modal for idea details
+  - [x] **DEPLOYED**: https://sparkengine-3740d.web.app
 
 ### What's Next
-- Phase 2: Foundation (Firebase + Auth)
-- Phase 3: Dashboard (Next.js frontend)
 - Phase 4: Polish (Loading states, mobile, errors)
+- End-to-end testing with real data
 
 ---
 
@@ -89,7 +116,13 @@ Components:
 ---
 
 ## Success Criteria
-- [ ] Daily scheduled generation works (6 AM UTC)
-- [ ] Manual "Generate Ideas" button works
-- [ ] AI-generated ideas appear in dashboard with scores
-- [ ] Filter/sort/status/notes all functional
+- [x] Daily scheduled generation deployed (6 AM UTC) - Ready for first run
+- [x] Manual "Generate Ideas" endpoint deployed (HTTP function)
+- [x] Dashboard deployed with score display capabilities
+- [ ] End-to-end test: Generate ideas and verify in dashboard
+- [ ] Filter/sort/status/notes functional with real data
+
+## Deployment URLs
+- **Frontend**: https://sparkengine-3740d.web.app
+- **Generate Ideas API**: https://generateideashttp-b7kq6socsa-uc.a.run.app
+- **Firebase Console**: https://console.firebase.google.com/project/sparkengine-3740d/overview

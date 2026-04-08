@@ -16,7 +16,7 @@ import {
   type DocumentSnapshot,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { db } from './config';
+import { getDb } from './config';
 import type { Idea, Note, CreateIdeaInput, UpdateIdeaInput, getScoreTier } from '@/lib/types/idea';
 import type { IdeaFilters, SortOption } from '@/lib/types/filters';
 
@@ -36,7 +36,7 @@ export async function fetchIdeas(
   filters: IdeaFilters,
   cursor?: DocumentSnapshot
 ): Promise<{ ideas: Idea[]; lastDoc: DocumentSnapshot | null; hasMore: boolean }> {
-  const ideasRef = collection(db, 'users', userId, 'ideas');
+  const ideasRef = collection(getDb(), 'users', userId, 'ideas');
   const constraints: QueryConstraint[] = [];
 
   // Status filter
@@ -100,7 +100,7 @@ export async function fetchIdeas(
 }
 
 export async function fetchIdea(userId: string, ideaId: string): Promise<Idea | null> {
-  const ideaRef = doc(db, 'users', userId, 'ideas', ideaId);
+  const ideaRef = doc(getDb(), 'users', userId, 'ideas', ideaId);
   const snapshot = await getDoc(ideaRef);
 
   if (!snapshot.exists()) {
@@ -118,7 +118,7 @@ export async function fetchIdea(userId: string, ideaId: string): Promise<Idea | 
 }
 
 export async function createIdea(userId: string, input: CreateIdeaInput): Promise<string> {
-  const ideasRef = collection(db, 'users', userId, 'ideas');
+  const ideasRef = collection(getDb(), 'users', userId, 'ideas');
 
   // Calculate composite score
   const compositeScore = calculateCompositeScore(input);
@@ -160,7 +160,7 @@ export async function updateIdea(
   ideaId: string,
   updates: UpdateIdeaInput
 ): Promise<void> {
-  const ideaRef = doc(db, 'users', userId, 'ideas', ideaId);
+  const ideaRef = doc(getDb(), 'users', userId, 'ideas', ideaId);
 
   const updateData: Record<string, unknown> = {
     ...updates,
@@ -198,12 +198,12 @@ export async function updateIdea(
 }
 
 export async function deleteIdea(userId: string, ideaId: string): Promise<void> {
-  const ideaRef = doc(db, 'users', userId, 'ideas', ideaId);
+  const ideaRef = doc(getDb(), 'users', userId, 'ideas', ideaId);
   const notesRef = collection(ideaRef, 'notes');
 
   // Delete all notes first
   const notesSnap = await getDocs(notesRef);
-  const batch = writeBatch(db);
+  const batch = writeBatch(getDb());
   notesSnap.docs.forEach((noteDoc) => {
     batch.delete(noteDoc.ref);
   });
@@ -214,7 +214,7 @@ export async function deleteIdea(userId: string, ideaId: string): Promise<void> 
 }
 
 export async function markIdeaViewed(userId: string, ideaId: string): Promise<void> {
-  const ideaRef = doc(db, 'users', userId, 'ideas', ideaId);
+  const ideaRef = doc(getDb(), 'users', userId, 'ideas', ideaId);
   const ideaSnap = await getDoc(ideaRef);
 
   if (ideaSnap.exists() && !ideaSnap.data().viewedAt) {
@@ -230,7 +230,7 @@ export async function markIdeaViewed(userId: string, ideaId: string): Promise<vo
 // ============================================
 
 export async function fetchNotes(userId: string, ideaId: string): Promise<Note[]> {
-  const notesRef = collection(db, 'users', userId, 'ideas', ideaId, 'notes');
+  const notesRef = collection(getDb(), 'users', userId, 'ideas', ideaId, 'notes');
   const q = query(notesRef, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
 
@@ -243,10 +243,10 @@ export async function fetchNotes(userId: string, ideaId: string): Promise<Note[]
 }
 
 export async function createNote(userId: string, ideaId: string, content: string): Promise<string> {
-  const ideaRef = doc(db, 'users', userId, 'ideas', ideaId);
+  const ideaRef = doc(getDb(), 'users', userId, 'ideas', ideaId);
   const notesRef = collection(ideaRef, 'notes');
 
-  const batch = writeBatch(db);
+  const batch = writeBatch(getDb());
 
   const noteRef = doc(notesRef);
   batch.set(noteRef, {
@@ -274,7 +274,7 @@ export async function updateNote(
   noteId: string,
   content: string
 ): Promise<void> {
-  const noteRef = doc(db, 'users', userId, 'ideas', ideaId, 'notes', noteId);
+  const noteRef = doc(getDb(), 'users', userId, 'ideas', ideaId, 'notes', noteId);
   await updateDoc(noteRef, {
     content,
     updatedAt: serverTimestamp(),
@@ -282,10 +282,10 @@ export async function updateNote(
 }
 
 export async function deleteNote(userId: string, ideaId: string, noteId: string): Promise<void> {
-  const ideaRef = doc(db, 'users', userId, 'ideas', ideaId);
+  const ideaRef = doc(getDb(), 'users', userId, 'ideas', ideaId);
   const noteRef = doc(ideaRef, 'notes', noteId);
 
-  const batch = writeBatch(db);
+  const batch = writeBatch(getDb());
   batch.delete(noteRef);
 
   // Decrement note count
@@ -306,7 +306,7 @@ export async function deleteNote(userId: string, ideaId: string, noteId: string)
 export async function fetchStatusCounts(
   userId: string
 ): Promise<Record<string, number>> {
-  const ideasRef = collection(db, 'users', userId, 'ideas');
+  const ideasRef = collection(getDb(), 'users', userId, 'ideas');
   const snapshot = await getDocs(ideasRef);
 
   const counts: Record<string, number> = {

@@ -81,20 +81,6 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "compositeScore", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "generationRuns",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

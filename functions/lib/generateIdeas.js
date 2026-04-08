@@ -61,9 +61,23 @@ exports.generateIdeasHttp = (0, https_1.onRequest)({
     secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540, // 9 minutes max
-    cors: true,
     region: 'us-central1',
+    invoker: 'public', // Allow unauthenticated HTTP access (we verify Firebase Auth in code)
 }, async (req, res) => {
+    // Set CORS headers manually
+    const allowedOrigins = ['https://sparkengine-3740d.web.app', 'http://localhost:3000'];
+    const origin = req.headers.origin || '';
+    if (allowedOrigins.includes(origin)) {
+        res.set('Access-Control-Allow-Origin', origin);
+    }
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Max-Age', '3600');
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
     console.log('[HTTP Trigger] Received generation request');
     // Only allow POST
     if (req.method !== 'POST') {

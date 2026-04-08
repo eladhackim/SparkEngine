@@ -1,7 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
-import { X, ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -11,45 +10,60 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScoreBadge } from '@/components/ideas/score-badge';
-import { StatusDropdown } from '@/components/ideas/status-dropdown';
+import { ScoreBadge } from './score-badge';
+import { StatusDropdown } from './status-dropdown';
 import { useQuery } from '@tanstack/react-query';
 import { ideaKeys } from '@/lib/queries/query-keys';
 import { fetchIdea, markIdeaViewed } from '@/lib/firebase/firestore';
 import { useAuth } from '@/providers/auth-provider';
+import { useSelectedIdea } from '@/providers/selected-idea-provider';
 import { useEffect } from 'react';
-import type { Idea } from '@/lib/types/idea';
 
-export default function IdeaDetailPage() {
-  const params = useParams();
-  const router = useRouter();
+function ScoreItem({ label, value }: { label: string; value: number }) {
+  const getColor = (v: number) => {
+    if (v >= 4) return 'bg-green-100 text-green-800';
+    if (v >= 3) return 'bg-yellow-100 text-yellow-800';
+    if (v >= 2) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  return (
+    <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm font-medium px-2 py-0.5 rounded ${getColor(value)}`}>
+        {value}/5
+      </span>
+    </div>
+  );
+}
+
+export function IdeaDetailSheet() {
   const { user } = useAuth();
-  const ideaId = params.id as string;
+  const { selectedIdeaId, clearSelection } = useSelectedIdea();
 
   const { data: idea, isLoading, error } = useQuery({
-    queryKey: ideaKeys.detail(ideaId),
-    queryFn: () => (user ? fetchIdea(user.uid, ideaId) : null),
-    enabled: !!user && !!ideaId,
+    queryKey: ideaKeys.detail(selectedIdeaId || ''),
+    queryFn: () => (user && selectedIdeaId ? fetchIdea(user.uid, selectedIdeaId) : null),
+    enabled: !!user && !!selectedIdeaId,
   });
 
   // Mark as viewed when opened
   useEffect(() => {
-    if (user && ideaId && idea && !idea.viewedAt) {
-      markIdeaViewed(user.uid, ideaId);
+    if (user && selectedIdeaId && idea && !idea.viewedAt) {
+      markIdeaViewed(user.uid, selectedIdeaId);
     }
-  }, [user, ideaId, idea]);
-
-  const handleClose = () => {
-    router.back();
-  };
+  }, [user, selectedIdeaId, idea]);
 
   const handleStatusChange = (newStatus: string) => {
-    // Will implement with mutation
     console.log('Status changed to:', newStatus);
   };
 
+  if (!selectedIdeaId) {
+    return null;
+  }
+
   return (
-    <Sheet open onOpenChange={handleClose}>
+    <Sheet open={!!selectedIdeaId} onOpenChange={(open) => !open && clearSelection()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         {isLoading ? (
           <div className="space-y-4 p-4">
@@ -83,7 +97,6 @@ export default function IdeaDetailPage() {
             </SheetHeader>
 
             <div className="mt-6 space-y-6">
-              {/* Status & Actions */}
               <div className="flex items-center gap-4">
                 <StatusDropdown
                   status={idea.status}
@@ -99,7 +112,6 @@ export default function IdeaDetailPage() {
                 </div>
               </div>
 
-              {/* Scores */}
               <div className="space-y-3">
                 <h3 className="font-medium">Scores</h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -111,7 +123,6 @@ export default function IdeaDetailPage() {
                 </div>
               </div>
 
-              {/* AI Content (if available) */}
               {idea.source === 'ai-generated' && (
                 <>
                   {idea.elevatorPitch && (
@@ -155,38 +166,22 @@ export default function IdeaDetailPage() {
                     <div className="space-y-2">
                       <h3 className="font-medium">Business Plan</h3>
                       <div className="text-sm text-muted-foreground space-y-2">
-                        <p>
-                          <span className="font-medium text-foreground">Target Market:</span>{' '}
-                          {idea.businessPlan.targetMarket}
-                        </p>
-                        <p>
-                          <span className="font-medium text-foreground">Monetization:</span>{' '}
-                          {idea.businessPlan.monetization}
-                        </p>
-                        <p>
-                          <span className="font-medium text-foreground">Go-to-Market:</span>{' '}
-                          {idea.businessPlan.goToMarket}
-                        </p>
-                        <p>
-                          <span className="font-medium text-foreground">Competitive Advantage:</span>{' '}
-                          {idea.businessPlan.competitiveAdvantage}
-                        </p>
+                        <p><span className="font-medium text-foreground">Target Market:</span> {idea.businessPlan.targetMarket}</p>
+                        <p><span className="font-medium text-foreground">Monetization:</span> {idea.businessPlan.monetization}</p>
+                        <p><span className="font-medium text-foreground">Go-to-Market:</span> {idea.businessPlan.goToMarket}</p>
+                        <p><span className="font-medium text-foreground">Competitive Advantage:</span> {idea.businessPlan.competitiveAdvantage}</p>
                       </div>
                     </div>
                   )}
                 </>
               )}
 
-              {/* Tags */}
               {idea.tags.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-medium">Tags</h3>
                   <div className="flex flex-wrap gap-2">
                     {idea.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-1 text-xs bg-muted rounded-full"
-                      >
+                      <span key={tag} className="px-2 py-1 text-xs bg-muted rounded-full">
                         {tag}
                       </span>
                     ))}
@@ -194,7 +189,6 @@ export default function IdeaDetailPage() {
                 </div>
               )}
 
-              {/* Source Signals (for AI-generated) */}
               {idea.sourceSignals && idea.sourceSignals.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-medium">Market Signals</h3>
@@ -209,7 +203,6 @@ export default function IdeaDetailPage() {
                 </div>
               )}
 
-              {/* Metadata */}
               <div className="pt-4 border-t text-xs text-muted-foreground space-y-1">
                 <p>Created: {idea.createdAt.toLocaleDateString()}</p>
                 <p>Updated: {idea.updatedAt.toLocaleDateString()}</p>
@@ -221,23 +214,5 @@ export default function IdeaDetailPage() {
         )}
       </SheetContent>
     </Sheet>
-  );
-}
-
-function ScoreItem({ label, value }: { label: string; value: number }) {
-  const getColor = (v: number) => {
-    if (v >= 4) return 'bg-green-100 text-green-800';
-    if (v >= 3) return 'bg-yellow-100 text-yellow-800';
-    if (v >= 2) return 'bg-orange-100 text-orange-800';
-    return 'bg-red-100 text-red-800';
-  };
-
-  return (
-    <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`text-sm font-medium px-2 py-0.5 rounded ${getColor(value)}`}>
-        {value}/5
-      </span>
-    </div>
   );
 }

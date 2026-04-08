@@ -56,7 +56,7 @@ IMPORTANT:
 - brief should be 1-2 sentences max
 - tags should be 3-5 lowercase keywords
 - sourceSignals should reference 1-3 signals that inspired this idea`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,7 +76,19 @@ IMPORTANT:
     if (!content) {
         throw new Error('Invalid response from Gemini API');
     }
-    const ideas = JSON.parse(content);
+    // Extract JSON from response (may be wrapped in markdown code blocks)
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```json')) {
+        jsonStr = jsonStr.slice(7);
+    }
+    else if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.slice(3);
+    }
+    if (jsonStr.endsWith('```')) {
+        jsonStr = jsonStr.slice(0, -3);
+    }
+    jsonStr = jsonStr.trim();
+    const ideas = JSON.parse(jsonStr);
     // Validate and normalize categories
     const normalizedIdeas = ideas.map(idea => ({
         name: idea.name,

@@ -41,13 +41,11 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
+      // This will redirect to Google - page will reload after auth
       await signInWithGoogle();
-      toast.success('Welcome!');
-      router.push('/');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
       toast.error(message);
-    } finally {
       setGoogleLoading(false);
     }
   };
@@ -58,7 +56,7 @@ export default function LoginPage() {
         <div className="flex justify-center mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">Idea Forge</span>
+            <span className="text-2xl font-bold">EngineSpark</span>
           </div>
         </div>
         <CardTitle className="text-2xl">Welcome back</CardTitle>

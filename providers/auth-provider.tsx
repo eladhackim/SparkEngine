@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { type User } from 'firebase/auth';
-import { subscribeToAuthState } from '@/lib/firebase/auth';
+import { subscribeToAuthState, handleGoogleRedirectResult } from '@/lib/firebase/auth';
 
 interface AuthContextValue {
   user: User | null;
@@ -23,6 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Handle Google redirect result on page load
+    handleGoogleRedirectResult().catch(console.error);
+
     const unsubscribe = subscribeToAuthState((authUser) => {
       setUser(authUser);
       setLoading(false);

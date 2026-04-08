@@ -35,7 +35,7 @@ export function Header() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Sparkles className="h-6 w-6 text-primary" />
-          <span className="hidden sm:inline-block">Idea Forge</span>
+          <span className="hidden sm:inline-block">EngineSpark</span>
         </Link>
 
         {/* User Menu */}
@@ -66,13 +66,13 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled className="opacity-50">
                 <User className="mr-2 h-4 w-4" />
-                Profile
+                Profile (coming soon)
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled className="opacity-50">
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                Settings (coming soon)
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="text-red-600">

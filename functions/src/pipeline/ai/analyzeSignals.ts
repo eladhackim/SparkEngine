@@ -65,7 +65,7 @@ IMPORTANT:
 - category should be one of: games, tools, saas, platforms, mobile, content, services, hardware, other`;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -99,7 +99,19 @@ IMPORTANT:
     throw new Error('Invalid response from Gemini API');
   }
 
-  const result = JSON.parse(content) as AnalyzedSignals;
+  // Extract JSON from response (may be wrapped in markdown code blocks)
+  let jsonStr = content.trim();
+  if (jsonStr.startsWith('```json')) {
+    jsonStr = jsonStr.slice(7);
+  } else if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.slice(3);
+  }
+  if (jsonStr.endsWith('```')) {
+    jsonStr = jsonStr.slice(0, -3);
+  }
+  jsonStr = jsonStr.trim();
+
+  const result = JSON.parse(jsonStr) as AnalyzedSignals;
 
   console.log(`[Signal Analysis] Found ${result.opportunities?.length || 0} opportunities, ${result.painPoints?.length || 0} pain points, ${result.trendingThemes?.length || 0} themes`);
 

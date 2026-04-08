@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Idea Forge - AI-Powered Idea Management',
+  title: 'EngineSpark - AI-Powered Idea Management',
   description: 'Generate, score, and manage business ideas with AI-powered insights',
 };
 

@@ -25,7 +25,7 @@ export async function fetchXTrends(): Promise<XTrendData> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'grok-2-latest',
+      model: 'grok-3-latest',
       messages: [
         {
           role: 'system',

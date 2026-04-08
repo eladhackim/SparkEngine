@@ -93,27 +93,15 @@ function getFirestoreDb(): Firestore {
   return _db;
 }
 
-// Export getters that provide lazy initialization
-// These create proxy objects that only initialize Firebase when accessed
-export const app = new Proxy({} as FirebaseApp, {
-  get(_, prop) {
-    return Reflect.get(getFirebaseApp(), prop);
-  },
-});
+// Export getter functions for lazy initialization
+export { getFirebaseApp as getApp, getFirebaseAuth as getAuth, getFirestoreDb as getDb };
 
-export const auth = new Proxy({} as Auth, {
-  get(_, prop) {
-    return Reflect.get(getFirebaseAuth(), prop);
-  },
-});
+// Convenience aliases
+export const app = { get: getFirebaseApp };
+export const auth = { get: getFirebaseAuth };
+export const db = { get: getFirestoreDb };
 
-export const db = new Proxy({} as Firestore, {
-  get(_, prop) {
-    return Reflect.get(getFirestoreDb(), prop);
-  },
-});
-
-export default app;
+export default { getApp: getFirebaseApp, getAuth: getFirebaseAuth, getDb: getFirestoreDb };
 
 // Type exports for convenience
 export type { FirebaseApp } from 'firebase/app';
