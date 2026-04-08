@@ -2,6 +2,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
@@ -12,6 +13,12 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuth, getDb } from './config';
 
 const googleProvider = new GoogleAuthProvider();
+
+// Detect mobile browser
+function isMobile(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 export async function signInWithEmail(email: string, password: string): Promise<User> {
   const result = await signInWithEmailAndPassword(getAuth(), email, password);
@@ -25,14 +32,35 @@ export async function signUpWithEmail(email: string, password: string): Promise<
   return result.user;
 }
 
-export async function signInWithGoogle(): Promise<void> {
-  // Use redirect instead of popup to avoid COOP issues
-  await signInWithRedirect(getAuth(), googleProvider);
+export async function signInWithGoogle(): Promise<User | null> {
+  // Use popup for mobile (redirect has issues), redirect for desktop (COOP issues with popup)
+  if (isMobile()) {
+    console.log('[Auth] Using popup for mobile');
+    const result = await signInWithPopup(getAuth(), googleProvider);
+    const userDoc = await getDoc(doc(getDb(), 'users', result.user.uid));
+    if (!userDoc.exists()) {
+      await createUserDocument(result.user);
+    } else {
+      await updateLastLogin(result.user.uid);
+    }
+    return result.user;
+  } else {
+    console.log('[Auth] Using redirect for desktop');
+    await signInWithRedirect(getAuth(), googleProvider);
+    return null;
+  }
 }
 
 export async function handleGoogleRedirectResult(): Promise<User | null> {
+  // Skip on mobile since we use popup
+  if (isMobile()) {
+    console.log('[Auth] Skipping redirect result on mobile');
+    return null;
+  }
+
   const result = await getRedirectResult(getAuth());
   if (result) {
+    console.log('[Auth] Got redirect result:', result.user.email);
     const userDoc = await getDoc(doc(getDb(), 'users', result.user.uid));
     if (!userDoc.exists()) {
       await createUserDocument(result.user);

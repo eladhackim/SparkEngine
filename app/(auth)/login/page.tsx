@@ -41,8 +41,15 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      // This will redirect to Google - page will reload after auth
-      await signInWithGoogle();
+      // On mobile: popup returns user directly
+      // On desktop: redirect, page will reload after auth
+      const user = await signInWithGoogle();
+      if (user) {
+        // Mobile popup flow - user is already authenticated
+        toast.success('Welcome!');
+        router.push('/');
+      }
+      // Desktop redirect flow - page will reload
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
       toast.error(message);

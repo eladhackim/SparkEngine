@@ -52,8 +52,15 @@ export default function SignupPage() {
   const handleGoogleSignup = async () => {
     setGoogleLoading(true);
     try {
-      // This will redirect to Google - page will reload after auth
-      await signInWithGoogle();
+      // On mobile: popup returns user directly
+      // On desktop: redirect, page will reload after auth
+      const user = await signInWithGoogle();
+      if (user) {
+        // Mobile popup flow - user is already authenticated
+        toast.success('Welcome to EngineSpark!');
+        router.push('/');
+      }
+      // Desktop redirect flow - page will reload
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign up with Google';
       toast.error(message);
