@@ -1,0 +1,225 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns this resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validate string field with length constraints
+    function isValidString(field, minLen, maxLen) {
+      return field is string
+        && field.size() >= minLen
+        && field.size() <= maxLen;
+    }
+
+    // Validate score is integer 1-5
+    function isValidScore(score) {
+      return score is int && score >= 1 && score <= 5;
+    }
+
+    // Validate optional score (null or 1-5)
+    function isValidOptionalScore(score) {
+      return score == null || isValidScore(score);
+    }
+
+    // Validate composite score is number 1.0-5.0
+    function isValidCompositeScore(score) {
+      return score is number && score >= 1.0 && score <= 5.0;
+    }
+
+    // Validate idea status enum
+    function isValidStatus(status) {
+      return status in ['new', 'reviewing', 'pursuing', 'parked', 'rejected'];
+    }
+
+    // Validate idea category enum
+    function isValidCategory(category) {
+      return category in ['games', 'tools', 'saas', 'platforms', 'mobile', 'content', 'services', 'hardware', 'other'];
+    }
+
+    // Validate tier enum
+    function isValidTier(tier) {
+      return tier in ['hot', 'warm', 'park', 'discard'];
+    }
+
+    // Validate idea source enum
+    function isValidSource(source) {
+      return source in ['manual', 'ai-generated', 'trend-suggested', 'imported'];
+    }
+
+    // Validate scoring method enum
+    function isValidScoringMethod(method) {
+      return method in ['manual', 'ai-auto', 'ai-assisted'];
+    }
+
+    // Validate tags array
+    function isValidTags(tags) {
+      return tags is list
+        && tags.size() <= 10;
+      // Note: Individual tag validation (1-30 chars) should be done client-side
+    }
+
+    // Validate optional string array (sourceSignals, strengths, risks)
+    function isValidOptionalStringArray(arr, maxSize) {
+      return arr == null || (arr is list && arr.size() <= maxSize);
+    }
+
+    // Validate timestamp is server timestamp
+    function isServerTimestamp(field) {
+      return field == request.time;
+    }
+
+    // ============================================
+    // USER DOCUMENT RULES
+    // ============================================
+
+    match /users/{userId} {
+      // Allow user to read their own document
+      allow read: if isOwner(userId);
+
+      // Allow user to create their own document (on first login)
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && isValidString(request.resource.data.email, 3, 320)
+        && isServerTimestamp(request.resource.data.createdAt)
+        && isServerTimestamp(request.resource.data.lastLoginAt);
+
+      // Allow user to update their own document
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.email == resource.data.email // Email cannot change
+        && request.resource.data.createdAt == resource.data.createdAt // CreatedAt cannot change
+        && isServerTimestamp(request.resource.data.lastLoginAt);
+
+      // Never allow delete (soft-delete pattern)
+      allow delete: if false;
+
+      // ============================================
+      // IDEAS SUBCOLLECTION RULES
+      // ============================================
+
+      match /ideas/{ideaId} {
+        // Allow owner to read all their ideas
+        allow read: if isOwner(userId);
+
+        // Allow owner to create ideas with validation
+        allow create: if isOwner(userId)
+          && isValidString(request.resource.data.name, 1, 100)
+          && isValidString(request.resource.data.brief, 1, 500)
+          && isValidCategory(request.resource.data.category)
+          && isValidStatus(request.resource.data.status)
+          && isValidSource(request.resource.data.source)
+          && isValidScoringMethod(request.resource.data.scoringMethod)
+          && isValidScore(request.resource.data.businessPotential)
+          && isValidScore(request.resource.data.developmentComplexity)
+          && isValidScore(request.resource.data.timeToMarket)
+          && isValidScore(request.resource.data.competitionLevel)
+          && isValidScore(request.resource.data.riskLevel)
+          && isValidCompositeScore(request.resource.data.compositeScore)
+          && isValidTier(request.resource.data.tier)
+          && isValidOptionalStringArray(request.resource.data.sourceSignals, 10)
+          && isValidOptionalStringArray(request.resource.data.strengths, 5)
+          && isValidOptionalStringArray(request.resource.data.risks, 5)
+          && isServerTimestamp(request.resource.data.createdAt)
+          && isServerTimestamp(request.resource.data.updatedAt);
+
+        // Allow owner to update ideas with validation
+        allow update: if isOwner(userId)
+          && isValidString(request.resource.data.name, 1, 100)
+          && isValidString(request.resource.data.brief, 1, 500)
+          && isValidCategory(request.resource.data.category)
+          && isValidStatus(request.resource.data.status)
+          && isValidSource(request.resource.data.source)
+          && isValidScoringMethod(request.resource.data.scoringMethod)
+          && isValidScore(request.resource.data.businessPotential)
+          && isValidScore(request.resource.data.developmentComplexity)
+          && isValidScore(request.resource.data.timeToMarket)
+          && isValidScore(request.resource.data.competitionLevel)
+          && isValidScore(request.resource.data.riskLevel)
+          && isValidCompositeScore(request.resource.data.compositeScore)
+          && isValidTier(request.resource.data.tier)
+          && isValidOptionalStringArray(request.resource.data.sourceSignals, 10)
+          && isValidOptionalStringArray(request.resource.data.strengths, 5)
+          && isValidOptionalStringArray(request.resource.data.risks, 5)
+          && request.resource.data.createdAt == resource.data.createdAt // CreatedAt cannot change
+          && request.resource.data.source == resource.data.source // Source cannot change
+          && request.resource.data.generationRunId == resource.data.generationRunId // RunId cannot change
+          && isServerTimestamp(request.resource.data.updatedAt);
+
+        // Allow owner to delete ideas (hard delete for permanent removal)
+        allow delete: if isOwner(userId);
+
+        // ============================================
+        // NOTES SUBCOLLECTION RULES
+        // ============================================
+
+        match /notes/{noteId} {
+          // Allow owner to read all notes
+          allow read: if isOwner(userId);
+
+          // Allow owner to create notes with validation
+          allow create: if isOwner(userId)
+            && isValidString(request.resource.data.content, 1, 2000)
+            && isServerTimestamp(request.resource.data.createdAt)
+            && isServerTimestamp(request.resource.data.updatedAt);
+
+          // Allow owner to update notes
+          allow update: if isOwner(userId)
+            && isValidString(request.resource.data.content, 1, 2000)
+            && request.resource.data.createdAt == resource.data.createdAt // CreatedAt cannot change
+            && isServerTimestamp(request.resource.data.updatedAt);
+
+          // Allow owner to delete notes
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      // ============================================
+      // GENERATION RUNS SUBCOLLECTION RULES
+      // ============================================
+
+      match /generationRuns/{runId} {
+        // Allow owner to read generation run history
+        allow read: if isOwner(userId);
+
+        // No write from client - only Cloud Functions can write
+        // Cloud Functions use Admin SDK which bypasses security rules
+        allow create, update, delete: if false;
+      }
+
+      // ============================================
+      // SETTINGS SUBCOLLECTION RULES
+      // ============================================
+
+      match /settings/{settingsId} {
+        // Allow owner to read settings
+        allow read: if isOwner(userId);
+
+        // Allow owner to create/update settings
+        allow create, update: if isOwner(userId);
+
+        // Never allow delete
+        allow delete: if false;
+      }
+    }
+
+    // ============================================
+    // CATCH-ALL: DENY EVERYTHING ELSE
+    // ============================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
