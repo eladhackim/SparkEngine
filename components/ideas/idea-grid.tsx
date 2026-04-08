@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { type DocumentSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/providers/auth-provider';
+import { useSelectedIdea } from '@/providers/selected-idea-provider';
 import { ideaKeys } from '@/lib/queries/query-keys';
 import { fetchIdeas, updateIdea } from '@/lib/firebase/firestore';
 import { IdeaCard } from './idea-card';
@@ -20,6 +22,8 @@ interface IdeaGridProps {
 export function IdeaGrid({ filters }: IdeaGridProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { setIdeaIds } = useSelectedIdea();
+  const lastIdeaIdsRef = useRef<string>('');
 
   const {
     data,
@@ -61,6 +65,18 @@ export function IdeaGrid({ filters }: IdeaGridProps) {
     updateStatusMutation.mutate({ ideaId, status });
   };
 
+  // Get all ideas from all pages (compute before any conditional returns)
+  const ideas = data?.pages.flatMap((page) => page.ideas) || [];
+  const ideaIdsString = ideas.map((idea) => idea.id).join(',');
+
+  // Update idea IDs for navigation - must be called unconditionally (rules of hooks)
+  useEffect(() => {
+    if (ideaIdsString !== lastIdeaIdsRef.current) {
+      lastIdeaIdsRef.current = ideaIdsString;
+      setIdeaIds(ideaIdsString ? ideaIdsString.split(',') : []);
+    }
+  }, [ideaIdsString, setIdeaIds]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -86,9 +102,6 @@ export function IdeaGrid({ filters }: IdeaGridProps) {
       </div>
     );
   }
-
-  // Get all ideas from all pages
-  const ideas = data?.pages.flatMap((page) => page.ideas) || [];
 
   // Empty state
   if (ideas.length === 0) {

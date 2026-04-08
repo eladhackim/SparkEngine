@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -41,7 +41,16 @@ function ScoreItem({ label, value }: { label: string; value: number }) {
 
 export function IdeaDetailSheet() {
   const { user } = useAuth();
-  const { selectedIdeaId, clearSelection } = useSelectedIdea();
+  const {
+    selectedIdeaId,
+    clearSelection,
+    goToNext,
+    goToPrevious,
+    hasNext,
+    hasPrevious,
+    currentIndex,
+    totalCount,
+  } = useSelectedIdea();
   const queryClient = useQueryClient();
   const hasAutoSwitchedToReviewing = useRef(false);
 
@@ -102,7 +111,41 @@ export function IdeaDetailSheet() {
 
   return (
     <Sheet open={!!selectedIdeaId} onOpenChange={(open) => !open && clearSelection()}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-6 sm:p-8">
+      <SheetContent
+        className="data-[state=open]:slide-in-from-bottom sm:data-[state=open]:slide-in-from-right w-[95vw] sm:w-full max-w-2xl h-[85vh] sm:h-full overflow-hidden flex flex-col fixed inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto sm:top-0 sm:right-0 sm:inset-y-0 mx-auto sm:mx-0 rounded-t-xl sm:rounded-none"
+        showCloseButton={false}
+      >
+        {/* Navigation Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <Button variant="ghost" size="icon" onClick={clearSelection}>
+            <X className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              {currentIndex >= 0 ? `${currentIndex + 1} / ${totalCount}` : ''}
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={goToPrevious}
+                disabled={!hasPrevious}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={goToNext}
+                disabled={!hasNext}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
         {isLoading ? (
           <div className="space-y-4 p-4">
             <Skeleton className="h-8 w-3/4" />
@@ -250,6 +293,7 @@ export function IdeaDetailSheet() {
             </div>
           </>
         )}
+        </div>
       </SheetContent>
     </Sheet>
   );
