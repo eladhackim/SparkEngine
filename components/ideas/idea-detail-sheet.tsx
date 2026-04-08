@@ -12,12 +12,14 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScoreBadge } from './score-badge';
 import { StatusDropdown } from './status-dropdown';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ideaKeys } from '@/lib/queries/query-keys';
-import { fetchIdea, markIdeaViewed } from '@/lib/firebase/firestore';
+import { fetchIdea, markIdeaViewed, updateIdea } from '@/lib/firebase/firestore';
 import { useAuth } from '@/providers/auth-provider';
 import { useSelectedIdea } from '@/providers/selected-idea-provider';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { toast } from 'sonner';
+import type { IdeaStatus } from '@/lib/types/idea';
 
 function ScoreItem({ label, value }: { label: string; value: number }) {
   const getColor = (v: number) => {
@@ -40,6 +42,8 @@ function ScoreItem({ label, value }: { label: string; value: number }) {
 export function IdeaDetailSheet() {
   const { user } = useAuth();
   const { selectedIdeaId, clearSelection } = useSelectedIdea();
+  const queryClient = useQueryClient();
+  const hasAutoSwitchedToReviewing = useRef(false);
 
   const { data: idea, isLoading, error } = useQuery({
     queryKey: ideaKeys.detail(selectedIdeaId || ''),
@@ -47,15 +51,49 @@ export function IdeaDetailSheet() {
     enabled: !!user && !!selectedIdeaId,
   });
 
-  // Mark as viewed when opened
+  // Mark as viewed and auto-switch "new" to "reviewing" when opened
   useEffect(() => {
-    if (user && selectedIdeaId && idea && !idea.viewedAt) {
-      markIdeaViewed(user.uid, selectedIdeaId);
-    }
-  }, [user, selectedIdeaId, idea]);
+    if (user && selectedIdeaId && idea) {
+      // Mark as viewed
+      if (!idea.viewedAt) {
+        markIdeaViewed(user.uid, selectedIdeaId);
+      }
 
-  const handleStatusChange = (newStatus: string) => {
-    console.log('Status changed to:', newStatus);
+      // Auto-switch "new" ideas to "reviewing" (only once per sheet open)
+      if (idea.status === 'new' && !hasAutoSwitchedToReviewing.current) {
+        hasAutoSwitchedToReviewing.current = true;
+        updateIdea(user.uid, selectedIdeaId, { status: 'reviewing' })
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ideaKeys.detail(selectedIdeaId) });
+            queryClient.invalidateQueries({ queryKey: ideaKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: ideaKeys.counts() });
+          })
+          .catch(console.error);
+      }
+    }
+  }, [user, selectedIdeaId, idea, queryClient]);
+
+  // Reset the auto-switch flag when sheet closes
+  useEffect(() => {
+    if (!selectedIdeaId) {
+      hasAutoSwitchedToReviewing.current = false;
+    }
+  }, [selectedIdeaId]);
+
+  const handleStatusChange = async (newStatus: IdeaStatus) => {
+    if (!user || !selectedIdeaId) return;
+
+    try {
+      await updateIdea(user.uid, selectedIdeaId, { status: newStatus });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ideaKeys.detail(selectedIdeaId) });
+      queryClient.invalidateQueries({ queryKey: ideaKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ideaKeys.counts() });
+      toast.success(`Status changed to ${newStatus}`);
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error('Failed to update status');
+    }
   };
 
   if (!selectedIdeaId) {
@@ -64,7 +102,7 @@ export function IdeaDetailSheet() {
 
   return (
     <Sheet open={!!selectedIdeaId} onOpenChange={(open) => !open && clearSelection()}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-6 sm:p-8">
         {isLoading ? (
           <div className="space-y-4 p-4">
             <Skeleton className="h-8 w-3/4" />
@@ -85,10 +123,10 @@ export function IdeaDetailSheet() {
             <SheetHeader className="space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <SheetTitle className="text-xl font-semibold">
+                  <SheetTitle className="text-2xl sm:text-3xl font-bold">
                     {idea.name}
                   </SheetTitle>
-                  <SheetDescription className="mt-1">
+                  <SheetDescription className="mt-2 text-base">
                     {idea.brief}
                   </SheetDescription>
                 </div>
@@ -96,7 +134,7 @@ export function IdeaDetailSheet() {
               </div>
             </SheetHeader>
 
-            <div className="mt-6 space-y-6">
+            <div className="mt-8 space-y-8">
               <div className="flex items-center gap-4">
                 <StatusDropdown
                   status={idea.status}
@@ -112,9 +150,9 @@ export function IdeaDetailSheet() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <h3 className="font-medium">Scores</h3>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Scores</h3>
+                <div className="grid grid-cols-2 gap-4">
                   <ScoreItem label="Business Potential" value={idea.businessPotential} />
                   <ScoreItem label="Development" value={idea.developmentComplexity} />
                   <ScoreItem label="Time to Market" value={idea.timeToMarket} />
@@ -126,22 +164,22 @@ export function IdeaDetailSheet() {
               {idea.source === 'ai-generated' && (
                 <>
                   {idea.elevatorPitch && (
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Elevator Pitch</h3>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold">Elevator Pitch</h3>
+                      <p className="text-base text-muted-foreground leading-relaxed">
                         {idea.elevatorPitch}
                       </p>
                     </div>
                   )}
 
                   {idea.strengths.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Strengths</h3>
-                      <ul className="text-sm text-muted-foreground space-y-1">
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold">Strengths</h3>
+                      <ul className="text-base text-muted-foreground space-y-2">
                         {idea.strengths.map((s, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-green-500">+</span>
-                            {s}
+                          <li key={i} className="flex items-start gap-3">
+                            <span className="text-green-500 text-lg">+</span>
+                            <span className="leading-relaxed">{s}</span>
                           </li>
                         ))}
                       </ul>
@@ -149,13 +187,13 @@ export function IdeaDetailSheet() {
                   )}
 
                   {idea.risks.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Risks</h3>
-                      <ul className="text-sm text-muted-foreground space-y-1">
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold">Risks</h3>
+                      <ul className="text-base text-muted-foreground space-y-2">
                         {idea.risks.map((r, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-red-500">-</span>
-                            {r}
+                          <li key={i} className="flex items-start gap-3">
+                            <span className="text-red-500 text-lg">-</span>
+                            <span className="leading-relaxed">{r}</span>
                           </li>
                         ))}
                       </ul>
@@ -163,13 +201,13 @@ export function IdeaDetailSheet() {
                   )}
 
                   {idea.businessPlan && (
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Business Plan</h3>
-                      <div className="text-sm text-muted-foreground space-y-2">
-                        <p><span className="font-medium text-foreground">Target Market:</span> {idea.businessPlan.targetMarket}</p>
-                        <p><span className="font-medium text-foreground">Monetization:</span> {idea.businessPlan.monetization}</p>
-                        <p><span className="font-medium text-foreground">Go-to-Market:</span> {idea.businessPlan.goToMarket}</p>
-                        <p><span className="font-medium text-foreground">Competitive Advantage:</span> {idea.businessPlan.competitiveAdvantage}</p>
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold">Business Plan</h3>
+                      <div className="text-base text-muted-foreground space-y-3">
+                        <p className="leading-relaxed"><span className="font-medium text-foreground">Target Market:</span> {idea.businessPlan.targetMarket}</p>
+                        <p className="leading-relaxed"><span className="font-medium text-foreground">Monetization:</span> {idea.businessPlan.monetization}</p>
+                        <p className="leading-relaxed"><span className="font-medium text-foreground">Go-to-Market:</span> {idea.businessPlan.goToMarket}</p>
+                        <p className="leading-relaxed"><span className="font-medium text-foreground">Competitive Advantage:</span> {idea.businessPlan.competitiveAdvantage}</p>
                       </div>
                     </div>
                   )}
@@ -177,11 +215,11 @@ export function IdeaDetailSheet() {
               )}
 
               {idea.tags.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-medium">Tags</h3>
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold">Tags</h3>
                   <div className="flex flex-wrap gap-2">
                     {idea.tags.map((tag) => (
-                      <span key={tag} className="px-2 py-1 text-xs bg-muted rounded-full">
+                      <span key={tag} className="px-3 py-1.5 text-sm bg-muted rounded-full">
                         {tag}
                       </span>
                     ))}

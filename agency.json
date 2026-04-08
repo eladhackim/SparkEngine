@@ -1,0 +1,12 @@
+{
+  "projectName": "SparkEngine",
+  "currentDepartment": "active-dev",
+  "departmentHistory": [
+    {
+      "department": "active-dev",
+      "startedAt": "2026-04-08T22:01:21.233Z",
+      "completedAt": null
+    }
+  ],
+  "createdAt": "2026-04-08T22:01:21.233Z"
+}
