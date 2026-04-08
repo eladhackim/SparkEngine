@@ -1,13 +1,6 @@
-/**
- * Firebase Configuration
- *
- * This file initializes Firebase and exports the configured instances.
- * Based on the configuration defined in docs/technical/auth-security.md
- */
-
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore';
 
 /**
  * Firebase configuration loaded from environment variables.
@@ -27,61 +20,102 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Validate required config
-const requiredKeys = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-];
+// Singleton instances (lazy initialized)
+let _app: FirebaseApp | null = null;
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
 
-for (const key of requiredKeys) {
-  if (!process.env[key]) {
-    console.warn(`Missing required Firebase config: ${key}`);
+// Track if emulators have been connected (to avoid double connection)
+let emulatorsConnected = false;
+
+/**
+ * Get Firebase app instance (lazy initialization).
+ * Only initializes when called from client-side code.
+ */
+function getFirebaseApp(): FirebaseApp {
+  if (typeof window === 'undefined') {
+    throw new Error('Firebase cannot be initialized on the server');
   }
+
+  if (_app) return _app;
+
+  if (!getApps().length) {
+    _app = initializeApp(firebaseConfig);
+  } else {
+    _app = getApp();
+  }
+
+  return _app;
 }
 
-// ============================================
-// SINGLETON INITIALIZATION
-// ============================================
+/**
+ * Get Firebase Auth instance (lazy initialization).
+ */
+function getFirebaseAuth(): Auth {
+  if (_auth) return _auth;
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
+  const app = getFirebaseApp();
+  _auth = getAuth(app);
 
   // Connect to emulators in development
   if (
     process.env.NODE_ENV === 'development' &&
-    process.env.NEXT_PUBLIC_USE_EMULATORS === 'true'
+    process.env.NEXT_PUBLIC_USE_EMULATORS === 'true' &&
+    !emulatorsConnected
   ) {
     console.log('Connecting to Firebase emulators...');
-
-    // Auth emulator
-    connectAuthEmulator(auth, 'http://localhost:9099', {
-      disableWarnings: true,
-    });
-
-    // Firestore emulator
-    connectFirestoreEmulator(db, 'localhost', 8080);
-
-    console.log('Connected to Firebase emulators');
+    connectAuthEmulator(_auth, 'http://localhost:9099', { disableWarnings: true });
+    emulatorsConnected = true;
   }
-} else {
-  app = getApps()[0];
-  auth = getAuth(app);
-  db = getFirestore(app);
+
+  return _auth;
 }
 
-export { app, auth, db };
+/**
+ * Get Firestore instance (lazy initialization).
+ */
+function getFirestoreDb(): Firestore {
+  if (_db) return _db;
 
-// ============================================
-// TYPE EXPORTS
-// ============================================
+  const app = getFirebaseApp();
+  _db = getFirestore(app);
 
+  // Connect to emulators in development
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.NEXT_PUBLIC_USE_EMULATORS === 'true' &&
+    !emulatorsConnected
+  ) {
+    connectFirestoreEmulator(_db, 'localhost', 8080);
+    emulatorsConnected = true;
+  }
+
+  return _db;
+}
+
+// Export getters that provide lazy initialization
+// These create proxy objects that only initialize Firebase when accessed
+export const app = new Proxy({} as FirebaseApp, {
+  get(_, prop) {
+    return Reflect.get(getFirebaseApp(), prop);
+  },
+});
+
+export const auth = new Proxy({} as Auth, {
+  get(_, prop) {
+    return Reflect.get(getFirebaseAuth(), prop);
+  },
+});
+
+export const db = new Proxy({} as Firestore, {
+  get(_, prop) {
+    return Reflect.get(getFirestoreDb(), prop);
+  },
+});
+
+export default app;
+
+// Type exports for convenience
 export type { FirebaseApp } from 'firebase/app';
 export type { Auth, User, UserCredential } from 'firebase/auth';
 export type {
