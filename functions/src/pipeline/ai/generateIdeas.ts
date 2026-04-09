@@ -29,12 +29,22 @@ export async function generateFromSignals(
 
   const validCategories = ['games', 'tools', 'saas', 'platforms', 'mobile', 'content', 'services', 'hardware', 'other'];
 
+  // Build preference section if user has set preferences
+  const preferenceSection = options.preferenceConstraints
+    ? `\n\nUSER PREFERENCES (MUST FOLLOW):\n${options.preferenceConstraints}\n\nThese preferences are MANDATORY constraints. Generated ideas MUST align with these requirements.`
+    : '';
+
+  // Use custom temperature or default (0.9 for high creativity)
+  const temperature = options.temperature ?? 0.9;
+
+  console.log(`[Idea Generation] Using temperature: ${temperature}${options.preferenceConstraints ? ', with user preferences' : ''}`);
+
   const prompt = `You are a creative business idea generator.
 
 Based on the following market signals and opportunities, generate ${options.count} unique business/app ideas.
 
 MARKET SIGNALS:
-${JSON.stringify(signals, null, 2)}
+${JSON.stringify(signals, null, 2)}${preferenceSection}
 
 REQUIREMENTS:
 - Each idea should address a real opportunity or pain point from the signals
@@ -74,7 +84,7 @@ IMPORTANT:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: 'application/json',
-          temperature: 0.9, // Higher creativity
+          temperature, // Based on user's novelty preference (0.3-1.0)
         },
       }),
     }

@@ -24,6 +24,8 @@ export interface GenerationConfig {
   sources: GenerationSource[];
   ideasPerRun: number;
   categories?: string[];
+  preferenceConstraints?: string;
+  aiTemperature?: number;
 }
 
 export interface GenerationResult {
@@ -368,6 +370,8 @@ export interface RawIdea {
 export interface GenerationOptions {
   count: number;
   categories?: string[];
+  preferenceConstraints?: string;
+  temperature?: number;
 }
 
 export interface BusinessPlan {

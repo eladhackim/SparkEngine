@@ -9,6 +9,8 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { runGenerationPipeline } from './pipeline/index.js';
 import { GenerationConfig, GenerationSource, SSEEvent, ProgressCallback } from './types/pipeline.js';
+import { UserPreferences } from './types/preferences.js';
+import { buildConstraintsFromPreferences, getTemperature } from './personalization/promptBuilder.js';
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
@@ -79,6 +81,23 @@ export const generateIdeasHttp = onRequest(
       return;
     }
 
+    // Load user preferences for personalized generation
+    let preferenceConstraints: string | undefined;
+    let aiTemperature: number | undefined;
+    try {
+      const userDoc = await admin.firestore().collection('users').doc(userId).get();
+      const userPrefs = userDoc.data()?.preferences as UserPreferences | undefined;
+      if (userPrefs) {
+        preferenceConstraints = buildConstraintsFromPreferences(userPrefs);
+        aiTemperature = getTemperature(userPrefs.characteristics?.noveltyLevel ?? 3);
+        console.log(`[HTTP Trigger] Loaded preferences for user ${userId}, temperature: ${aiTemperature}`);
+      } else {
+        console.log(`[HTTP Trigger] No preferences found for user ${userId}, using defaults`);
+      }
+    } catch (prefError) {
+      console.warn('[HTTP Trigger] Failed to load preferences, continuing with defaults:', prefError);
+    }
+
     // Parse request body
     const body = req.body || {};
     const validSources: GenerationSource[] = ['x', 'polymarket', 'googlenews', 'appstore'];
@@ -94,6 +113,8 @@ export const generateIdeasHttp = onRequest(
       sources: requestedSources.length > 0 ? requestedSources : defaultSources,
       ideasPerRun,
       categories: Array.isArray(body.categories) ? body.categories : undefined,
+      preferenceConstraints,
+      aiTemperature,
     };
 
     console.log(`[HTTP Trigger] Config: ${JSON.stringify(config)}`);
@@ -219,6 +240,16 @@ export const generateIdeasScheduled = onSchedule(
 
       console.log(`[Scheduled Trigger] Processing user: ${userId}`);
 
+      // Load user preferences
+      let preferenceConstraints: string | undefined;
+      let aiTemperature: number | undefined;
+      const userPrefs = userData.preferences as UserPreferences | undefined;
+      if (userPrefs) {
+        preferenceConstraints = buildConstraintsFromPreferences(userPrefs);
+        aiTemperature = getTemperature(userPrefs.characteristics?.noveltyLevel ?? 3);
+        console.log(`[Scheduled Trigger] Loaded preferences for user ${userId}`);
+      }
+
       const validSources: GenerationSource[] = ['x', 'polymarket', 'googlenews', 'appstore'];
       const defaultSources: GenerationSource[] = ['x', 'polymarket', 'googlenews'];
       const userSources = Array.isArray(userData.generationSources)
@@ -230,6 +261,8 @@ export const generateIdeasScheduled = onSchedule(
         sources: userSources.length > 0 ? userSources : defaultSources,
         ideasPerRun: Math.min(Math.max(userData.ideasPerRun || 10, 1), 25),
         categories: userData.preferredCategories || undefined,
+        preferenceConstraints,
+        aiTemperature,
       };
 
       try {
@@ -306,12 +339,24 @@ export const generateNicheIdeasScheduled = onSchedule(
 
       console.log(`[Niche Discovery] Processing user: ${userId}`);
 
+      // Load user preferences
+      let preferenceConstraints: string | undefined;
+      let aiTemperature: number | undefined;
+      const userPrefs = userData.preferences as UserPreferences | undefined;
+      if (userPrefs) {
+        preferenceConstraints = buildConstraintsFromPreferences(userPrefs);
+        aiTemperature = getTemperature(userPrefs.characteristics?.noveltyLevel ?? 3);
+        console.log(`[Niche Discovery] Loaded preferences for user ${userId}`);
+      }
+
       // Run App Store pipeline only
       const config: GenerationConfig = {
         userId,
         sources: ['appstore'], // Only App Store source
         ideasPerRun: Math.min(Math.max(userData.nicheIdeasPerRun || 5, 1), 10),
         categories: userData.appStoreCategories || undefined,
+        preferenceConstraints,
+        aiTemperature,
       };
 
       try {

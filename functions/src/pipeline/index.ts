@@ -212,6 +212,8 @@ export async function runGenerationPipeline(
     const rawIdeas = await generateFromSignals(signals, {
       count: config.ideasPerRun,
       categories: config.categories,
+      preferenceConstraints: config.preferenceConstraints,
+      temperature: config.aiTemperature,
     });
 
     stages.generating = {
