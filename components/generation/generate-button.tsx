@@ -85,11 +85,18 @@ export function GenerateButton({ onGenerate, isGenerating = false }: GenerateBut
         {/* Source Selection Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="inline-flex items-center justify-center whitespace-nowrap font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 rounded-l-none border-l border-l-primary-foreground/20 px-2"
-            disabled={isGenerating}
-          >
-            <ChevronDown className="h-4 w-4" />
-          </DropdownMenuTrigger>
+            render={(props) => (
+              <Button
+                {...props}
+                variant="default"
+                size="lg"
+                className="rounded-l-none border-l border-l-primary-foreground/20 px-2"
+                disabled={isGenerating}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            )}
+          />
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Generate from specific source</DropdownMenuLabel>
             <DropdownMenuSeparator />
