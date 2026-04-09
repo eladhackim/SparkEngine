@@ -194,6 +194,27 @@ export interface TechnicalOverview {
     mvpTimeline: string;
     technicalRisks: string[];
 }
+/**
+ * Source metadata for displaying analysis details in UI
+ */
+export interface SourceMetadata {
+    appsAnalyzed: Array<{
+        name: string;
+        platform: 'ios' | 'android';
+        rating: number;
+        reviewCount: number;
+        downloads: string;
+        category: string;
+    }>;
+    sampleReviews: Array<{
+        appName: string;
+        quote: string;
+        rating: number;
+    }>;
+    categoriesAnalyzed: string[];
+    totalReviewsAnalyzed: number;
+    analysisDate: string;
+}
 export interface AINativeIdea extends ScoredIdea {
     source: 'friction-derived';
     displayLabel: string;
@@ -203,6 +224,7 @@ export interface AINativeIdea extends ScoredIdea {
     aiApproach: AIApproachDetails;
     usp: USPDetails;
     technicalOverview: TechnicalOverview;
+    sourceMetadata?: SourceMetadata;
 }
 export interface NicheDiscoveryConfig {
     maxNiches: number;
@@ -328,4 +350,54 @@ export interface GenerationRunDocument {
         };
     };
 }
+export type ProgressStage = 'collecting' | 'analyzing' | 'generating' | 'scoring' | 'saving';
+export interface CollectingProgressData {
+    categoriesTotal: number;
+    categoriesCompleted: number;
+    currentCategory: string;
+    appsFound: number;
+    reviewsFound: number;
+}
+export interface AnalyzingProgressData {
+    appsTotal: number;
+    appsCompleted: number;
+    currentApp: string;
+    frictionPointsFound: number;
+}
+export interface GeneratingProgressData {
+    clustersTotal: number;
+    ideasGenerated: number;
+    currentCluster: string;
+}
+export interface ScoringProgressData {
+    ideasTotal: number;
+    ideasScored: number;
+}
+export interface SavingProgressData {
+    ideasTotal: number;
+    ideasSaved: number;
+}
+export type StageProgressData = CollectingProgressData | AnalyzingProgressData | GeneratingProgressData | ScoringProgressData | SavingProgressData;
+export interface ProgressEvent {
+    type: 'progress';
+    stage: ProgressStage;
+    progress: number;
+    data: StageProgressData;
+    timestamp: string;
+}
+export interface CompleteEvent {
+    type: 'complete';
+    runId: string;
+    ideasGenerated: number;
+    ideasSaved: number;
+    duration: number;
+}
+export interface ErrorEvent {
+    type: 'error';
+    stage: string;
+    message: string;
+    recoverable: boolean;
+}
+export type SSEEvent = ProgressEvent | CompleteEvent | ErrorEvent;
+export type ProgressCallback = (event: SSEEvent) => void;
 //# sourceMappingURL=pipeline.d.ts.map

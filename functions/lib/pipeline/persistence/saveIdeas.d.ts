@@ -10,7 +10,7 @@ import { ScoredIdea, GenerationRunDocument, GenerationSource, GenerationTrigger,
  * @param runId - Generation run ID for linking
  * @returns Promise<number> - Number of ideas saved
  */
-export declare function saveIdeas(userId: string, ideas: ScoredIdea[], runId: string): Promise<number>;
+export declare function saveIdeas(userId: string, ideas: ScoredIdea[], runId: string, sources?: GenerationSource[]): Promise<number>;
 /**
  * Saves AI-native ideas from friction analysis to Firestore
  * @param userId - User ID to save ideas for

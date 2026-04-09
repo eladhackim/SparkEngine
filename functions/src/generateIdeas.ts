@@ -8,7 +8,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { runGenerationPipeline } from './pipeline/index.js';
-import { GenerationConfig, GenerationSource } from './types/pipeline.js';
+import { GenerationConfig, GenerationSource, SSEEvent, ProgressCallback } from './types/pipeline.js';
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
@@ -98,34 +98,90 @@ export const generateIdeasHttp = onRequest(
 
     console.log(`[HTTP Trigger] Config: ${JSON.stringify(config)}`);
 
-    try {
-      const result = await runGenerationPipeline(config, 'manual');
+    // Check if SSE streaming is requested
+    const useSSE = req.query.stream === 'true' || body.stream === true;
 
-      if (result.success) {
-        res.status(200).json({
-          success: true,
-          data: {
-            runId: result.runId,
-            ideasGenerated: result.ideasGenerated,
-            ideasSaved: result.ideasSaved,
-            duration: result.duration,
-          },
+    if (useSSE) {
+      // SSE Mode: Stream progress events
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+      // Keep connection alive with heartbeat
+      const heartbeat = setInterval(() => {
+        res.write(': heartbeat\n\n');
+      }, 15000);
+
+      // Progress callback that writes SSE events
+      const sendProgress: ProgressCallback = (event: SSEEvent) => {
+        try {
+          res.write(`data: ${JSON.stringify(event)}\n\n`);
+        } catch (writeError) {
+          console.error('[SSE] Write error:', writeError);
+        }
+      };
+
+      // Handle client disconnect
+      req.on('close', () => {
+        clearInterval(heartbeat);
+        console.log('[SSE] Client disconnected');
+      });
+
+      try {
+        const result = await runGenerationPipeline(config, 'manual', sendProgress);
+
+        // Send completion event
+        sendProgress({
+          type: 'complete',
+          runId: result.runId,
+          ideasGenerated: result.ideasGenerated,
+          ideasSaved: result.ideasSaved,
+          duration: result.duration,
         });
-      } else {
+      } catch (error) {
+        console.error('[HTTP Trigger] Error:', error);
+        sendProgress({
+          type: 'error',
+          stage: 'unknown',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          recoverable: false,
+        });
+      } finally {
+        clearInterval(heartbeat);
+        res.end();
+      }
+    } else {
+      // Legacy Mode: Return JSON response
+      try {
+        const result = await runGenerationPipeline(config, 'manual');
+
+        if (result.success) {
+          res.status(200).json({
+            success: true,
+            data: {
+              runId: result.runId,
+              ideasGenerated: result.ideasGenerated,
+              ideasSaved: result.ideasSaved,
+              duration: result.duration,
+            },
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: 'GENERATION_FAILED',
+            message: 'Pipeline failed to generate ideas',
+            errors: result.errors,
+          });
+        }
+      } catch (error) {
+        console.error('[HTTP Trigger] Error:', error);
         res.status(500).json({
           success: false,
           error: 'GENERATION_FAILED',
-          message: 'Pipeline failed to generate ideas',
-          errors: result.errors,
+          message: error instanceof Error ? error.message : 'Unknown error',
         });
       }
-    } catch (error) {
-      console.error('[HTTP Trigger] Error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'GENERATION_FAILED',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
     }
   }
 );

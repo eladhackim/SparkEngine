@@ -48,11 +48,13 @@ const admin = __importStar(require("firebase-admin"));
  * @param runId - Generation run ID for linking
  * @returns Promise<number> - Number of ideas saved
  */
-async function saveIdeas(userId, ideas, runId) {
+async function saveIdeas(userId, ideas, runId, sources = []) {
     const db = admin.firestore();
     const batch = db.batch();
     let savedCount = 0;
     console.log(`[Persistence] Saving ${ideas.length} ideas for user ${userId}...`);
+    // Determine primary data source (first source if single-source generation, null if multiple)
+    const primaryDataSource = sources.length === 1 ? sources[0] : (sources.length > 0 ? sources[0] : null);
     for (const idea of ideas) {
         const ideaRef = db.collection('users').doc(userId).collection('ideas').doc();
         batch.set(ideaRef, {
@@ -63,6 +65,7 @@ async function saveIdeas(userId, ideas, runId) {
             tags: idea.tags || [],
             status: 'new',
             source: 'ai-generated',
+            dataSource: primaryDataSource, // Track which data source was used
             // Scores
             businessPotential: idea.businessPotential,
             developmentComplexity: idea.developmentComplexity,
@@ -120,6 +123,7 @@ async function saveAINativeIdeas(userId, ideas, runId) {
             tags: idea.tags || [],
             status: 'new',
             source: 'friction-derived',
+            dataSource: 'appstore', // App Store niche discovery source
             // Display label for UI ribbon
             displayLabel: idea.displayLabel || 'App Store Insight',
             labelColor: idea.labelColor || 'purple',
@@ -148,6 +152,8 @@ async function saveAINativeIdeas(userId, ideas, runId) {
             aiApproach: idea.aiApproach || null,
             usp: idea.usp || null,
             technicalOverview: idea.technicalOverview || null,
+            // Source metadata for UI display (apps analyzed, reviews, etc.)
+            sourceMetadata: idea.sourceMetadata || null,
             // Metadata
             sourceSignals: idea.sourceSignals || [],
             generationRunId: runId,

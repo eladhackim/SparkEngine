@@ -25,9 +25,9 @@ const DEFAULT_CATEGORIES = [
 ];
 // Configuration constants
 const CONFIG = {
-    maxAppsPerCategory: 10,
-    maxReviewsPerApp: 100,
-    requestDelay: 500, // ms between requests to avoid rate limiting
+    maxAppsPerCategory: 5, // 5 apps × 3 categories = 15 apps total
+    maxReviewsPerApp: 40, // 40 reviews per app for good friction analysis
+    requestDelay: 200, // ms between requests
 };
 // Category mapping for Google Play (using string values that match the enum)
 const GPLAY_CATEGORY_MAP = {

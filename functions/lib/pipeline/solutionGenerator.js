@@ -8,7 +8,7 @@ exports.generateAISolutions = generateAISolutions;
 // ============================================
 // CONFIGURATION
 // ============================================
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 // AI approaches available
 const AI_APPROACHES = {
     'multimodal-vision': {
@@ -280,7 +280,39 @@ Be creative with naming but realistic with technical claims.`;
 /**
  * Transform generated solutions to AI-native idea format
  */
-function transformToAINativeIdeas(solutions, clusters, runId) {
+function transformToAINativeIdeas(solutions, clusters, niches, runId) {
+    // Build shared source metadata from all niches
+    const appsAnalyzed = niches.flatMap(n => n.topApps.map(app => ({
+        name: app.name,
+        platform: app.platform,
+        rating: app.rating,
+        reviewCount: app.reviewCount,
+        downloads: app.downloads,
+        category: app.category,
+    })));
+    const categoriesAnalyzed = [...new Set(niches.map(n => n.category))];
+    // Collect sample reviews from friction points across all clusters
+    const allQuotes = [];
+    for (const cluster of clusters) {
+        for (const fp of cluster.frictionPoints) {
+            for (const quote of fp.evidence.userQuotes.slice(0, 2)) {
+                allQuotes.push({
+                    appName: fp.appName,
+                    quote,
+                    rating: fp.evidence.ratingCorrelation,
+                });
+            }
+        }
+    }
+    const sampleReviews = allQuotes.slice(0, 10); // Keep top 10 quotes
+    const totalReviewsAnalyzed = clusters.reduce((sum, c) => sum + c.frictionPoints.reduce((s, fp) => s + fp.evidence.reviewCount, 0), 0);
+    const sharedSourceMetadata = {
+        appsAnalyzed,
+        sampleReviews,
+        categoriesAnalyzed,
+        totalReviewsAnalyzed,
+        analysisDate: new Date().toISOString(),
+    };
     return solutions.map((solution, index) => {
         // Find matching cluster
         const cluster = clusters[Math.min(index, clusters.length - 1)];
@@ -388,6 +420,8 @@ function transformToAINativeIdeas(solutions, clusters, runId) {
             aiApproach,
             usp,
             technicalOverview,
+            // Source metadata for UI display
+            sourceMetadata: sharedSourceMetadata,
         };
         return idea;
     });
@@ -427,7 +461,7 @@ async function generateAISolutions(frictionPoints, niches, ideasPerNiche, runId)
     const solutions = await generateSolutionsFromClusters(clusters, niches, ideasPerNiche, geminiApiKey, runId);
     console.log(`[SolutionGenerator ${runId}] Generated ${solutions.length} solutions`);
     // Transform to AI-native ideas
-    const ideas = transformToAINativeIdeas(solutions, clusters, runId);
+    const ideas = transformToAINativeIdeas(solutions, clusters, niches, runId);
     console.log(`[SolutionGenerator ${runId}] Transformed to ${ideas.length} AI-native ideas`);
     // Log tier breakdown
     const tierCounts = {

@@ -61,7 +61,7 @@ const NEWS_API_KEY = (0, params_1.defineSecret)('NEWS_API_KEY');
 exports.generateIdeasHttp = (0, https_1.onRequest)({
     secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
-    timeoutSeconds: 540, // 9 minutes max
+    timeoutSeconds: 900, // 15 minutes for App Store analysis
     region: 'us-central1',
     invoker: 'public', // Allow unauthenticated HTTP access (we verify Firebase Auth in code)
 }, async (req, res) => {
@@ -118,35 +118,89 @@ exports.generateIdeasHttp = (0, https_1.onRequest)({
         categories: Array.isArray(body.categories) ? body.categories : undefined,
     };
     console.log(`[HTTP Trigger] Config: ${JSON.stringify(config)}`);
-    try {
-        const result = await (0, index_js_1.runGenerationPipeline)(config, 'manual');
-        if (result.success) {
-            res.status(200).json({
-                success: true,
-                data: {
-                    runId: result.runId,
-                    ideasGenerated: result.ideasGenerated,
-                    ideasSaved: result.ideasSaved,
-                    duration: result.duration,
-                },
+    // Check if SSE streaming is requested
+    const useSSE = req.query.stream === 'true' || body.stream === true;
+    if (useSSE) {
+        // SSE Mode: Stream progress events
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+        // Keep connection alive with heartbeat
+        const heartbeat = setInterval(() => {
+            res.write(': heartbeat\n\n');
+        }, 15000);
+        // Progress callback that writes SSE events
+        const sendProgress = (event) => {
+            try {
+                res.write(`data: ${JSON.stringify(event)}\n\n`);
+            }
+            catch (writeError) {
+                console.error('[SSE] Write error:', writeError);
+            }
+        };
+        // Handle client disconnect
+        req.on('close', () => {
+            clearInterval(heartbeat);
+            console.log('[SSE] Client disconnected');
+        });
+        try {
+            const result = await (0, index_js_1.runGenerationPipeline)(config, 'manual', sendProgress);
+            // Send completion event
+            sendProgress({
+                type: 'complete',
+                runId: result.runId,
+                ideasGenerated: result.ideasGenerated,
+                ideasSaved: result.ideasSaved,
+                duration: result.duration,
             });
         }
-        else {
+        catch (error) {
+            console.error('[HTTP Trigger] Error:', error);
+            sendProgress({
+                type: 'error',
+                stage: 'unknown',
+                message: error instanceof Error ? error.message : 'Unknown error',
+                recoverable: false,
+            });
+        }
+        finally {
+            clearInterval(heartbeat);
+            res.end();
+        }
+    }
+    else {
+        // Legacy Mode: Return JSON response
+        try {
+            const result = await (0, index_js_1.runGenerationPipeline)(config, 'manual');
+            if (result.success) {
+                res.status(200).json({
+                    success: true,
+                    data: {
+                        runId: result.runId,
+                        ideasGenerated: result.ideasGenerated,
+                        ideasSaved: result.ideasSaved,
+                        duration: result.duration,
+                    },
+                });
+            }
+            else {
+                res.status(500).json({
+                    success: false,
+                    error: 'GENERATION_FAILED',
+                    message: 'Pipeline failed to generate ideas',
+                    errors: result.errors,
+                });
+            }
+        }
+        catch (error) {
+            console.error('[HTTP Trigger] Error:', error);
             res.status(500).json({
                 success: false,
                 error: 'GENERATION_FAILED',
-                message: 'Pipeline failed to generate ideas',
-                errors: result.errors,
+                message: error instanceof Error ? error.message : 'Unknown error',
             });
         }
-    }
-    catch (error) {
-        console.error('[HTTP Trigger] Error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'GENERATION_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-        });
     }
 });
 /**

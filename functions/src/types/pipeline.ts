@@ -454,3 +454,77 @@ export interface GenerationRunDocument {
     saving?: { duration: number; ideasSaved: number };
   };
 }
+
+// ============================================
+// SSE PROGRESS STREAMING TYPES
+// ============================================
+
+export type ProgressStage = 'collecting' | 'analyzing' | 'generating' | 'scoring' | 'saving';
+
+// Stage-specific data types
+export interface CollectingProgressData {
+  categoriesTotal: number;
+  categoriesCompleted: number;
+  currentCategory: string;
+  appsFound: number;
+  reviewsFound: number;
+}
+
+export interface AnalyzingProgressData {
+  appsTotal: number;
+  appsCompleted: number;
+  currentApp: string;
+  frictionPointsFound: number;
+}
+
+export interface GeneratingProgressData {
+  clustersTotal: number;
+  ideasGenerated: number;
+  currentCluster: string;
+}
+
+export interface ScoringProgressData {
+  ideasTotal: number;
+  ideasScored: number;
+}
+
+export interface SavingProgressData {
+  ideasTotal: number;
+  ideasSaved: number;
+}
+
+export type StageProgressData =
+  | CollectingProgressData
+  | AnalyzingProgressData
+  | GeneratingProgressData
+  | ScoringProgressData
+  | SavingProgressData;
+
+// SSE Event Types
+export interface ProgressEvent {
+  type: 'progress';
+  stage: ProgressStage;
+  progress: number; // 0-100
+  data: StageProgressData;
+  timestamp: string;
+}
+
+export interface CompleteEvent {
+  type: 'complete';
+  runId: string;
+  ideasGenerated: number;
+  ideasSaved: number;
+  duration: number;
+}
+
+export interface ErrorEvent {
+  type: 'error';
+  stage: string;
+  message: string;
+  recoverable: boolean;
+}
+
+export type SSEEvent = ProgressEvent | CompleteEvent | ErrorEvent;
+
+// Progress callback type for pipeline stages
+export type ProgressCallback = (event: SSEEvent) => void;

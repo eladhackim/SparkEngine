@@ -1,23 +1,83 @@
 'use client';
 
-import { Sparkles, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import type { GenerationStage } from '@/lib/types/generation';
+import type { GenerationStage, StageProgressData } from '@/lib/types/generation';
 import { stageLabels, stageProgress } from '@/lib/types/generation';
+import {
+  isCollectingData,
+  isAnalyzingData,
+  isGeneratingData,
+  isSavingData,
+} from '@/hooks/use-generation-stream';
 
 interface GenerationProgressProps {
   isGenerating: boolean;
   currentStage?: GenerationStage;
+  progress?: number; // Real progress from SSE (0-100)
+  stageData?: StageProgressData; // Rich stage-specific data
   error?: string;
   ideasGenerated?: number;
 }
 
 const stages: GenerationStage[] = ['collecting', 'analyzing', 'generating', 'scoring', 'saving'];
 
+function getStageDetails(stage: GenerationStage, data?: StageProgressData): string {
+  if (!data) return stageLabels[stage];
+
+  switch (stage) {
+    case 'collecting':
+      if (isCollectingData(data)) {
+        const { appsFound, reviewsFound, currentCategory } = data;
+        if (appsFound > 0 || reviewsFound > 0) {
+          return `Found ${appsFound} apps, ${reviewsFound.toLocaleString()} reviews`;
+        }
+        return `Fetching: ${currentCategory}`;
+      }
+      break;
+
+    case 'analyzing':
+      if (isAnalyzingData(data)) {
+        const { appsCompleted, appsTotal, frictionPointsFound, currentApp } = data;
+        if (frictionPointsFound > 0) {
+          return `Analyzed ${appsCompleted}/${appsTotal} apps, ${frictionPointsFound} friction points found`;
+        }
+        return `Analyzing: ${currentApp}`;
+      }
+      break;
+
+    case 'generating':
+      if (isGeneratingData(data)) {
+        const { ideasGenerated, currentCluster } = data;
+        if (ideasGenerated > 0) {
+          return `Generated ${ideasGenerated} ideas`;
+        }
+        return `Generating from: ${currentCluster}`;
+      }
+      break;
+
+    case 'scoring':
+      return stageLabels[stage];
+
+    case 'saving':
+      if (isSavingData(data)) {
+        const { ideasSaved, ideasTotal } = data;
+        if (ideasSaved > 0) {
+          return `Saved ${ideasSaved}/${ideasTotal} ideas`;
+        }
+      }
+      return stageLabels[stage];
+  }
+
+  return stageLabels[stage];
+}
+
 export function GenerationProgress({
   isGenerating,
   currentStage,
+  progress: realProgress,
+  stageData,
   error,
   ideasGenerated,
 }: GenerationProgressProps) {
@@ -26,7 +86,11 @@ export function GenerationProgress({
   }
 
   const currentStageIndex = currentStage ? stages.indexOf(currentStage) : -1;
-  const progress = currentStage
+
+  // Use real progress from SSE if available, otherwise fallback to stage-based estimate
+  const progress = realProgress !== undefined
+    ? realProgress
+    : currentStage
     ? stageProgress[currentStage].max
     : error
     ? 0
@@ -42,12 +106,18 @@ export function GenerationProgress({
           </div>
         ) : isGenerating ? (
           <div className="space-y-4">
-            {/* Progress Bar */}
-            <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="absolute h-full bg-primary transition-all duration-500 ease-out"
-                style={{ width: `${progress}%` }}
-              />
+            {/* Progress Bar with percentage */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="absolute h-full bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
 
             {/* Stages */}
@@ -81,10 +151,10 @@ export function GenerationProgress({
               })}
             </div>
 
-            {/* Current Stage Label */}
+            {/* Current Stage Details - with rich data */}
             {currentStage && (
               <p className="text-center text-sm text-muted-foreground">
-                {stageLabels[currentStage]}
+                {getStageDetails(currentStage, stageData)}
               </p>
             )}
           </div>

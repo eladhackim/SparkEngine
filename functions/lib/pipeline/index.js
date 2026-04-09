@@ -19,9 +19,10 @@ const solutionGenerator_js_1 = require("./solutionGenerator.js");
  * Runs the complete idea generation pipeline
  * @param config - Generation configuration
  * @param trigger - How the run was triggered (manual or scheduled)
+ * @param onProgress - Optional callback for SSE progress streaming
  * @returns Promise<GenerationResult> - Results of the pipeline run
  */
-async function runGenerationPipeline(config, trigger = 'manual') {
+async function runGenerationPipeline(config, trigger = 'manual', onProgress) {
     const startTime = Date.now();
     const runId = `run_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     const errors = [];
@@ -32,6 +33,20 @@ async function runGenerationPipeline(config, trigger = 'manual') {
         // STAGE 1: Collect data from sources (parallel)
         console.log(`[Pipeline ${runId}] Stage 1: Fetching data from sources...`);
         const collectingStart = Date.now();
+        // Emit collecting progress
+        onProgress?.({
+            type: 'progress',
+            stage: 'collecting',
+            progress: 0,
+            data: {
+                categoriesTotal: config.sources.length,
+                categoriesCompleted: 0,
+                currentCategory: 'Starting...',
+                appsFound: 0,
+                reviewsFound: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const sourcePromises = [];
         if (config.sources.includes('x')) {
             sourcePromises.push((0, x_js_1.fetchXTrends)().catch(e => {
@@ -58,7 +73,7 @@ async function runGenerationPipeline(config, trigger = 'manual') {
         const isAppStoreOnly = config.sources.length === 1 && config.sources.includes('appstore');
         if (isAppStoreOnly) {
             // Run the specialized App Store pipeline
-            return runAppStorePipeline(config, trigger, runId, startTime, stages, errors);
+            return runAppStorePipeline(config, trigger, runId, startTime, stages, errors, onProgress);
         }
         // If appstore is included with other sources, fetch it in parallel
         if (config.sources.includes('appstore')) {
@@ -75,21 +90,73 @@ async function runGenerationPipeline(config, trigger = 'manual') {
             success: validResults.length > 0,
         };
         console.log(`[Pipeline ${runId}] Stage 1 complete: ${validResults.length}/${sourcePromises.length} sources succeeded in ${stages.collecting.duration}ms`);
+        // Emit collecting complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'collecting',
+            progress: 20,
+            data: {
+                categoriesTotal: config.sources.length,
+                categoriesCompleted: validResults.length,
+                currentCategory: 'Complete',
+                appsFound: 0,
+                reviewsFound: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         if (validResults.length === 0) {
             throw new Error('All data sources failed');
         }
         // STAGE 2: Analyze signals
         console.log(`[Pipeline ${runId}] Stage 2: Analyzing signals...`);
         const analyzingStart = Date.now();
+        // Emit analyzing progress
+        onProgress?.({
+            type: 'progress',
+            stage: 'analyzing',
+            progress: 25,
+            data: {
+                appsTotal: validResults.length,
+                appsCompleted: 0,
+                currentApp: 'Analyzing signals...',
+                frictionPointsFound: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const signals = await (0, analyzeSignals_js_1.analyzeSignals)(validResults);
         stages.analyzing = {
             duration: Date.now() - analyzingStart,
             signalsFound: signals.opportunities.length + signals.painPoints.length,
         };
         console.log(`[Pipeline ${runId}] Stage 2 complete: ${stages.analyzing.signalsFound} signals in ${stages.analyzing.duration}ms`);
+        // Emit analyzing complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'analyzing',
+            progress: 70,
+            data: {
+                appsTotal: validResults.length,
+                appsCompleted: validResults.length,
+                currentApp: 'Complete',
+                frictionPointsFound: stages.analyzing.signalsFound,
+            },
+            timestamp: new Date().toISOString(),
+        });
         // STAGE 3: Generate ideas
         console.log(`[Pipeline ${runId}] Stage 3: Generating ideas...`);
         const generatingStart = Date.now();
+        // Emit generating progress
+        onProgress?.({
+            type: 'progress',
+            stage: 'generating',
+            progress: 72,
+            data: {
+                clustersTotal: stages.analyzing.signalsFound,
+                ideasGenerated: 0,
+                currentCluster: 'Generating ideas...',
+            },
+            timestamp: new Date().toISOString(),
+        });
         const rawIdeas = await (0, generateIdeas_js_1.generateFromSignals)(signals, {
             count: config.ideasPerRun,
             categories: config.categories,
@@ -99,23 +166,79 @@ async function runGenerationPipeline(config, trigger = 'manual') {
             ideasGenerated: rawIdeas.length,
         };
         console.log(`[Pipeline ${runId}] Stage 3 complete: ${rawIdeas.length} ideas in ${stages.generating.duration}ms`);
+        // Emit generating complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'generating',
+            progress: 85,
+            data: {
+                clustersTotal: stages.analyzing.signalsFound,
+                ideasGenerated: rawIdeas.length,
+                currentCluster: 'Complete',
+            },
+            timestamp: new Date().toISOString(),
+        });
         // STAGE 4: Score ideas
         console.log(`[Pipeline ${runId}] Stage 4: Scoring ideas...`);
         const scoringStart = Date.now();
+        // Emit scoring progress
+        onProgress?.({
+            type: 'progress',
+            stage: 'scoring',
+            progress: 87,
+            data: {
+                ideasTotal: rawIdeas.length,
+                ideasScored: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const scoredIdeas = await (0, scoreIdeas_js_1.scoreIdeas)(rawIdeas);
         stages.scoring = {
             duration: Date.now() - scoringStart,
         };
         console.log(`[Pipeline ${runId}] Stage 4 complete: ${scoredIdeas.length} ideas scored in ${stages.scoring.duration}ms`);
+        // Emit scoring complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'scoring',
+            progress: 95,
+            data: {
+                ideasTotal: scoredIdeas.length,
+                ideasScored: scoredIdeas.length,
+            },
+            timestamp: new Date().toISOString(),
+        });
         // STAGE 5: Save to Firestore
         console.log(`[Pipeline ${runId}] Stage 5: Saving to Firestore...`);
         const savingStart = Date.now();
-        const savedCount = await (0, saveIdeas_js_1.saveIdeas)(config.userId, scoredIdeas, runId);
+        // Emit saving progress
+        onProgress?.({
+            type: 'progress',
+            stage: 'saving',
+            progress: 96,
+            data: {
+                ideasTotal: scoredIdeas.length,
+                ideasSaved: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
+        const savedCount = await (0, saveIdeas_js_1.saveIdeas)(config.userId, scoredIdeas, runId, config.sources);
         stages.saving = {
             duration: Date.now() - savingStart,
             ideasSaved: savedCount,
         };
         console.log(`[Pipeline ${runId}] Stage 5 complete: ${savedCount} ideas saved in ${stages.saving.duration}ms`);
+        // Emit saving complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'saving',
+            progress: 100,
+            data: {
+                ideasTotal: scoredIdeas.length,
+                ideasSaved: savedCount,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const duration = Date.now() - startTime;
         console.log(`[Pipeline ${runId}] Pipeline complete. ${savedCount} ideas saved in ${duration}ms`);
         // Log run metadata
@@ -174,12 +297,26 @@ async function runGenerationPipeline(config, trigger = 'manual') {
  * Runs the specialized App Store niche discovery pipeline
  * This is used when appstore is the only source
  */
-async function runAppStorePipeline(config, trigger, runId, startTime, stages, errors) {
+async function runAppStorePipeline(config, trigger, runId, startTime, stages, errors, onProgress) {
     console.log(`[Pipeline ${runId}] Running App Store specialized pipeline`);
     try {
         // STAGE 1: Fetch App Store data
         console.log(`[Pipeline ${runId}] Stage 1: Fetching App Store data...`);
         const collectingStart = Date.now();
+        // Emit collecting start
+        onProgress?.({
+            type: 'progress',
+            stage: 'collecting',
+            progress: 0,
+            data: {
+                categoriesTotal: 3, // Default 3 categories
+                categoriesCompleted: 0,
+                currentCategory: 'Fetching apps...',
+                appsFound: 0,
+                reviewsFound: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const appStoreData = await (0, appstore_js_1.fetchAppStoreData)();
         stages.collecting = {
             duration: Date.now() - collectingStart,
@@ -188,9 +325,36 @@ async function runAppStorePipeline(config, trigger, runId, startTime, stages, er
             reviewsProcessed: appStoreData.metadata.reviewsProcessed,
         };
         console.log(`[Pipeline ${runId}] Stage 1 complete: ${appStoreData.metadata.appsAnalyzed} apps, ${appStoreData.metadata.reviewsProcessed} reviews in ${stages.collecting.duration}ms`);
+        // Emit collecting complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'collecting',
+            progress: 20,
+            data: {
+                categoriesTotal: appStoreData.metadata.categoriesAnalyzed.length,
+                categoriesCompleted: appStoreData.metadata.categoriesAnalyzed.length,
+                currentCategory: 'Complete',
+                appsFound: appStoreData.metadata.appsAnalyzed,
+                reviewsFound: appStoreData.metadata.reviewsProcessed,
+            },
+            timestamp: new Date().toISOString(),
+        });
         // STAGE 2: Detect friction points
         console.log(`[Pipeline ${runId}] Stage 2: Detecting friction...`);
         const frictionStart = Date.now();
+        // Emit analyzing start
+        onProgress?.({
+            type: 'progress',
+            stage: 'analyzing',
+            progress: 22,
+            data: {
+                appsTotal: appStoreData.metadata.appsAnalyzed,
+                appsCompleted: 0,
+                currentApp: 'Analyzing friction points...',
+                frictionPointsFound: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const frictionPoints = await (0, frictionDetector_js_1.detectFriction)(runId);
         stages.frictionDetection = {
             duration: Date.now() - frictionStart,
@@ -199,27 +363,86 @@ async function runAppStorePipeline(config, trigger, runId, startTime, stages, er
             p1Count: frictionPoints.filter(f => f.priority === 'P1').length,
         };
         console.log(`[Pipeline ${runId}] Stage 2 complete: ${frictionPoints.length} friction points in ${stages.frictionDetection.duration}ms`);
+        // Emit analyzing complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'analyzing',
+            progress: 70,
+            data: {
+                appsTotal: appStoreData.metadata.appsAnalyzed,
+                appsCompleted: appStoreData.metadata.appsAnalyzed,
+                currentApp: 'Complete',
+                frictionPointsFound: frictionPoints.length,
+            },
+            timestamp: new Date().toISOString(),
+        });
         if (frictionPoints.length === 0) {
             throw new Error('No friction points detected');
         }
         // STAGE 3: Generate AI solutions
         console.log(`[Pipeline ${runId}] Stage 3: Generating AI solutions...`);
         const generatingStart = Date.now();
+        // Emit generating start
+        onProgress?.({
+            type: 'progress',
+            stage: 'generating',
+            progress: 72,
+            data: {
+                clustersTotal: frictionPoints.length,
+                ideasGenerated: 0,
+                currentCluster: 'Generating AI solutions...',
+            },
+            timestamp: new Date().toISOString(),
+        });
         const aiIdeas = await (0, solutionGenerator_js_1.generateAISolutions)(frictionPoints, appStoreData.niches, config.ideasPerRun, runId);
         stages.generating = {
             duration: Date.now() - generatingStart,
             ideasGenerated: aiIdeas.length,
         };
         console.log(`[Pipeline ${runId}] Stage 3 complete: ${aiIdeas.length} AI-native ideas in ${stages.generating.duration}ms`);
+        // Emit generating complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'generating',
+            progress: 90,
+            data: {
+                clustersTotal: frictionPoints.length,
+                ideasGenerated: aiIdeas.length,
+                currentCluster: 'Complete',
+            },
+            timestamp: new Date().toISOString(),
+        });
         // STAGE 4: Save to Firestore
         console.log(`[Pipeline ${runId}] Stage 4: Saving to Firestore...`);
         const savingStart = Date.now();
+        // Emit saving start
+        onProgress?.({
+            type: 'progress',
+            stage: 'saving',
+            progress: 92,
+            data: {
+                ideasTotal: aiIdeas.length,
+                ideasSaved: 0,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const savedCount = await (0, saveIdeas_js_1.saveAINativeIdeas)(config.userId, aiIdeas, runId);
         stages.saving = {
             duration: Date.now() - savingStart,
             ideasSaved: savedCount,
         };
         console.log(`[Pipeline ${runId}] Stage 4 complete: ${savedCount} ideas saved in ${stages.saving.duration}ms`);
+        // Emit saving complete
+        onProgress?.({
+            type: 'progress',
+            stage: 'saving',
+            progress: 100,
+            data: {
+                ideasTotal: aiIdeas.length,
+                ideasSaved: savedCount,
+            },
+            timestamp: new Date().toISOString(),
+        });
         const duration = Date.now() - startTime;
         console.log(`[Pipeline ${runId}] App Store pipeline complete. ${savedCount} ideas saved in ${duration}ms`);
         // Log run metadata
