@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -85,22 +83,12 @@ export function GenerateButton({ onGenerate, isGenerating = false }: GenerateBut
         {/* Source Selection Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={(props) => (
-              <Button
-                {...props}
-                variant="default"
-                size="lg"
-                className="rounded-l-none border-l border-l-primary-foreground/20 px-2"
-                disabled={isGenerating}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            )}
-          />
+            disabled={isGenerating}
+            className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 h-10 rounded-l-none border-l border-l-primary-foreground/20 px-2 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Generate from specific source</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
             {sourceOptions.map((option) => {
               const Icon = option.icon;
               return (
