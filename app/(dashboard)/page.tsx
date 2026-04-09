@@ -33,7 +33,7 @@ function DashboardContent() {
     staleTime: 1000 * 30, // 30 seconds
   });
 
-  const handleGenerate = async (options: { sources: string[]; count: number }) => {
+  const handleGenerate = async (options: { sources: string[] | 'all'; count: number }) => {
     if (!user) {
       toast.error('Please sign in to generate ideas');
       return;
@@ -50,16 +50,23 @@ function DashboardContent() {
       // Get Firebase ID token for authentication
       const idToken = await user.getIdToken();
 
+      // Build request body - 'all' means omit sources to use all defaults
+      const requestBody: Record<string, unknown> = {
+        ideasPerRun: options.count,
+      };
+
+      // Only include sources if specific sources were requested
+      if (options.sources !== 'all') {
+        requestBody.sources = options.sources;
+      }
+
       const response = await fetch(GENERATE_FUNCTION_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({
-          sources: options.sources,
-          ideasPerRun: options.count,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

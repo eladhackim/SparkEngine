@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Loader2, Settings } from 'lucide-react';
+import { Sparkles, Loader2, ChevronDown, AtSign, TrendingUp, Newspaper, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -20,105 +20,96 @@ interface GenerateButtonProps {
 }
 
 interface GenerateOptions {
-  sources: DataSource[];
+  sources: DataSource[] | 'all';
   count: number;
 }
 
-const sourceLabels: Record<DataSource, string> = {
-  x: 'X (Twitter)',
-  polymarket: 'Polymarket',
-  googlenews: 'Google News',
-};
+interface SourceOption {
+  value: DataSource;
+  label: string;
+  shortLabel: string;
+  icon: React.ElementType;
+  color: string;
+}
+
+const sourceOptions: SourceOption[] = [
+  { value: 'x', label: 'From X Trends', shortLabel: 'X', icon: AtSign, color: 'text-blue-600' },
+  { value: 'polymarket', label: 'From Markets', shortLabel: 'Markets', icon: TrendingUp, color: 'text-green-600' },
+  { value: 'googlenews', label: 'From News', shortLabel: 'News', icon: Newspaper, color: 'text-orange-600' },
+  { value: 'appstore', label: 'From App Store', shortLabel: 'App Store', icon: Store, color: 'text-purple-600' },
+];
 
 export function GenerateButton({ onGenerate, isGenerating = false }: GenerateButtonProps) {
-  const [sources, setSources] = useState<DataSource[]>(['x', 'polymarket', 'googlenews']);
-  const [count, setCount] = useState(10);
+  const [count] = useState(10);
 
-  const handleGenerate = () => {
-    if (sources.length === 0) {
-      toast.error('Please select at least one data source');
-      return;
-    }
-
+  const handleGenerateAll = () => {
     if (onGenerate) {
-      onGenerate({ sources, count });
+      onGenerate({ sources: 'all', count });
     } else {
-      // Mock generation for now
       toast.info('Generation will be connected when Cloud Functions are deployed');
     }
   };
 
-  const toggleSource = (source: DataSource) => {
-    setSources((prev) =>
-      prev.includes(source)
-        ? prev.filter((s) => s !== source)
-        : [...prev, source]
-    );
+  const handleGenerateFromSource = (source: DataSource) => {
+    if (onGenerate) {
+      onGenerate({ sources: [source], count });
+    } else {
+      const option = sourceOptions.find(s => s.value === source);
+      toast.info(`Generate from ${option?.shortLabel || source} - will be connected when Cloud Functions are deployed`);
+    }
   };
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Main Generate Button */}
-      <Button
-        onClick={handleGenerate}
-        disabled={isGenerating}
-        size="lg"
-        className="gap-2"
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Generating...
-          </>
-        ) : (
-          <>
-            <Sparkles className="h-5 w-5" />
-            Generate Ideas
-          </>
-        )}
-      </Button>
-
-      {/* Quick Settings Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 w-10"
+    <div className="flex items-center">
+      {/* Main Generate Button with Dropdown */}
+      <div className="flex">
+        <Button
+          onClick={handleGenerateAll}
           disabled={isGenerating}
+          size="lg"
+          className="gap-2 rounded-r-none"
         >
-          <Settings className="h-4 w-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Generation Settings</DropdownMenuLabel>
-          <DropdownMenuSeparator />
+          {isGenerating ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-5 w-5" />
+              Generate Ideas
+            </>
+          )}
+        </Button>
 
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-            Data Sources
-          </DropdownMenuLabel>
-          {Object.entries(sourceLabels).map(([key, label]) => (
-            <DropdownMenuCheckboxItem
-              key={key}
-              checked={sources.includes(key as DataSource)}
-              onCheckedChange={() => toggleSource(key as DataSource)}
-            >
-              {label}
-            </DropdownMenuCheckboxItem>
-          ))}
+        {/* Source Selection Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="inline-flex items-center justify-center whitespace-nowrap font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 rounded-l-none border-l border-l-primary-foreground/20 px-2"
+            disabled={isGenerating}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Generate from specific source</DropdownMenuLabel>
+            <DropdownMenuSeparator />
 
-          <DropdownMenuSeparator />
-
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-            Ideas per run
-          </DropdownMenuLabel>
-          {[5, 10, 15, 20, 25].map((n) => (
-            <DropdownMenuCheckboxItem
-              key={n}
-              checked={count === n}
-              onCheckedChange={() => setCount(n)}
-            >
-              {n} ideas
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {sourceOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => handleGenerateFromSource(option.value)}
+                  className="cursor-pointer"
+                >
+                  <Icon className={`h-4 w-4 mr-2 ${option.color}`} />
+                  {option.label}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

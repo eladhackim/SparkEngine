@@ -1,9 +1,10 @@
 'use client';
 
-import { Sparkles, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScoreBadge } from './score-badge';
+import { SourceBadge } from './source-badge';
 import { StatusDropdown } from './status-dropdown';
 import { useSelectedIdea } from '@/providers/selected-idea-provider';
 import type { Idea, IdeaStatus } from '@/lib/types/idea';
@@ -27,13 +28,15 @@ export function IdeaCard({ idea, onStatusChange }: IdeaCardProps) {
   };
 
   const isNew = !idea.viewedAt;
-  const isAIGenerated = idea.source === 'ai-generated';
 
   // Calculate how recent the idea is
   const daysSinceCreated = Math.floor(
     (Date.now() - idea.createdAt.getTime()) / (1000 * 60 * 60 * 24)
   );
   const isRecent = daysSinceCreated <= 1;
+
+  // Show source badge for non-manual sources
+  const showSourceBadge = idea.source !== 'manual';
 
   return (
     <Card
@@ -55,11 +58,8 @@ export function IdeaCard({ idea, onStatusChange }: IdeaCardProps) {
               )}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              {isAIGenerated && (
-                <span className="flex items-center gap-1 text-xs text-purple-600">
-                  <Sparkles className="h-3 w-3" />
-                  AI
-                </span>
+              {showSourceBadge && (
+                <SourceBadge source={idea.source} size="sm" />
               )}
               {isRecent && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
