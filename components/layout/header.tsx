@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, Settings, LogOut, User } from 'lucide-react';
+import { Sparkles, Settings, LogOut, User, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
 import { signOut } from '@/lib/firebase/auth';
 import {
@@ -66,6 +66,10 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push('/personalization')}>
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                Personalization
+              </DropdownMenuItem>
               <DropdownMenuItem disabled className="opacity-50">
                 <User className="mr-2 h-4 w-4" />
                 Profile (coming soon)
