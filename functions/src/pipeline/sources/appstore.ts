@@ -249,7 +249,7 @@ async function fetchAppStoreApps(category: string): Promise<CompetitorApp[]> {
 
     return apps.map((app: AppStoreAppResult) => ({
       name: app.title,
-      appId: app.appId || String(app.id),
+      appId: String(app.id), // Use numeric ID for iOS (required for reviews/ratings API)
       platform: 'ios' as const,
       category: app.primaryGenre || category,
       downloads: 'Unknown', // App Store doesn't provide download counts

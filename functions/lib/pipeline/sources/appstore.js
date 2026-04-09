@@ -180,7 +180,7 @@ async function fetchAppStoreApps(category) {
         });
         return apps.map((app) => ({
             name: app.title,
-            appId: app.appId || String(app.id),
+            appId: String(app.id), // Use numeric ID for iOS (required for reviews/ratings API)
             platform: 'ios',
             category: app.primaryGenre || category,
             downloads: 'Unknown', // App Store doesn't provide download counts

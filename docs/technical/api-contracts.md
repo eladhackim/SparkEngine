@@ -1,7 +1,7 @@
 # Idea Forge: API Contracts & Data Models Specification
 
 **Status**: Technical Specification
-**Version**: 2.0
+**Version**: 2.1
 **Date**: April 8, 2026
 **Author**: Evelyn Jones (Tech Specs Worker)
 
@@ -57,7 +57,7 @@ export type ConfidenceLevel = 'high' | 'medium' | 'low';
 /**
  * Data source for trend analysis
  */
-export type DataSource = 'x' | 'polymarket' | 'googlenews';
+export type DataSource = 'x' | 'polymarket' | 'googlenews' | 'appstore';
 
 /**
  * Source of idea creation
@@ -237,10 +237,28 @@ export interface GenerationResult {
   ideasGenerated: number;
   /** Number of ideas saved to Firestore */
   ideasSaved: number;
+  /** Which data sources were actually queried */
+  sourcesUsed: DataSource[];
+  /** Per-source results */
+  sourceResults: SourceResult[];
   /** Errors encountered during execution */
   errors: string[];
   /** Total execution time in milliseconds */
   duration: number;
+}
+
+/**
+ * Result from a single data source
+ */
+export interface SourceResult {
+  /** Which source this result is for */
+  source: DataSource;
+  /** Whether fetching from this source succeeded */
+  success: boolean;
+  /** Number of signals/trends found */
+  signalsFound: number;
+  /** Error message if failed */
+  error?: string;
 }
 
 /**
@@ -462,8 +480,8 @@ export interface ChangeStatusRequest {
  * Request to trigger manual idea generation
  */
 export interface TriggerGenerationRequest {
-  /** Data sources to use (defaults to user's configured sources) */
-  sources?: DataSource[];
+  /** Data sources to use: 'all' for all sources, or array of specific sources */
+  sources: 'all' | DataSource[];
   /** Number of ideas to generate (5-25, defaults to user's setting) */
   ideasPerRun?: number;
   /** Optional category filter */
@@ -727,7 +745,7 @@ export interface NoteQueryParams {
 | `statuses` | array | all | - | 5 | Max 5 values (all statuses) |
 | `categories` | array | all | - | 20 | Max 20 categories |
 | `tags` | array | all | - | 10 | Max 10 tags (AND logic) |
-| `sources` | array | all | - | 3 | Max 3 values (all idea sources) |
+| `sources` | array | all | - | 3 | Max 3 values (IdeaSource: ai-generated, trend-suggested, manual) |
 | `generationRunId` | string | null | - | - | Valid run ID format |
 | `isNew` | boolean | false | - | - | Filter for last 24h |
 
@@ -736,18 +754,20 @@ export interface NoteQueryParams {
 | Field | Type | Required | Default | Min | Max | Notes |
 |-------|------|----------|---------|-----|-----|-------|
 | `autoGenerationEnabled` | boolean | No | true | - | - | Toggle auto-generation |
-| `generationSources` | array | No | all 3 | 1 | 3 | At least one source required |
+| `generationSources` | array | No | all 4 | 1 | 4 | At least one source required |
 | `ideasPerRun` | number | No | 10 | 5 | 25 | Ideas generated per run |
 | `preferredCategories` | array | No | null | 0 | 5 | Optional category filter |
 
-**Valid generationSources values**: `'x'`, `'polymarket'`, `'googlenews'`
+**Valid generationSources values**: `'x'`, `'polymarket'`, `'googlenews'`, `'appstore'`
 
 **Generation Request Validation**:
 | Field | Type | Required | Default | Min | Max | Notes |
 |-------|------|----------|---------|-----|-----|-------|
-| `sources` | array | No | user setting | 1 | 3 | Override user's sources |
+| `sources` | 'all' \| DataSource[] | Yes | - | - | - | Must be 'all' or array of 1+ valid sources |
 | `ideasPerRun` | number | No | user setting | 5 | 25 | Override user's count |
 | `categories` | array | No | null | 0 | 5 | Filter categories |
+
+**Valid sources values**: `'all'`, or array containing one or more of: `'x'`, `'polymarket'`, `'googlenews'`, `'appstore'`
 
 ### 2.5 Validation Error Format
 
@@ -1399,10 +1419,29 @@ Composite indexes needed for multi-field queries:
 
 ```typescript
 {
-  sources?: ('x' | 'polymarket' | 'googlenews')[];  // Default: user's configured sources
+  sources: 'all' | ('x' | 'polymarket' | 'googlenews' | 'appstore')[];  // Required
   ideasPerRun?: number;  // Default: user's setting (5-25)
   categories?: string[];  // Optional filter
 }
+```
+
+**Example Requests**:
+```typescript
+// All sources
+POST /api/generate
+{ "sources": "all" }
+
+// Single source
+POST /api/generate
+{ "sources": ["polymarket"] }
+
+// Multiple specific sources
+POST /api/generate
+{ "sources": ["x", "appstore"], "ideasPerRun": 15 }
+
+// With category filter
+POST /api/generate
+{ "sources": ["x", "googlenews"], "categories": ["SaaS", "Mobile Apps"] }
 ```
 
 **Output**: `TriggerGenerationResponse`
@@ -1414,7 +1453,14 @@ Composite indexes needed for multi-field queries:
     runId: "run_1712582400_abc123def",
     ideasGenerated: 10,
     ideasSaved: 10,
-    errors: [],
+    sourcesUsed: ["x", "polymarket", "googlenews", "appstore"],
+    sourceResults: [
+      { source: "x", success: true, signalsFound: 15 },
+      { source: "polymarket", success: true, signalsFound: 8 },
+      { source: "googlenews", success: true, signalsFound: 12 },
+      { source: "appstore", success: false, signalsFound: 0, error: "Rate limited" }
+    ],
+    errors: ["appstore: Rate limited"],
     duration: 45230  // milliseconds
   }
 }
@@ -1697,6 +1743,17 @@ Composite indexes needed for multi-field queries:
 | `INVALID_GENERATION_CONFIG` | 400 | Invalid generation settings | "Invalid generation settings" |
 | `AI_UNAVAILABLE` | 503 | AI service temporarily unavailable | "AI features temporarily unavailable" |
 
+#### Source-Specific Errors
+
+| Code | HTTP Status | Description | User Message |
+|------|-------------|-------------|--------------|
+| `SOURCE_X_UNAVAILABLE` | 503 | X/Twitter API unavailable | "X/Twitter data source is temporarily unavailable" |
+| `SOURCE_POLYMARKET_UNAVAILABLE` | 503 | Polymarket API unavailable | "Polymarket data source is temporarily unavailable" |
+| `SOURCE_NEWS_UNAVAILABLE` | 503 | Google News API unavailable | "News data source is temporarily unavailable" |
+| `SOURCE_APPSTORE_UNAVAILABLE` | 503 | App Store API unavailable | "App Store data source is temporarily unavailable" |
+
+**Note**: Source-specific errors are included in the `sourceResults` array of `GenerationResult`. The pipeline continues with remaining sources if one fails (graceful degradation). `SOURCES_UNAVAILABLE` is only returned if ALL requested sources fail.
+
 ### 7.2 Error Response Schema
 
 ```typescript
@@ -1978,6 +2035,7 @@ service cloud.firestore {
 |---------|------|--------|---------|
 | 1.0 | April 8, 2026 | Evelyn Jones | Initial specification |
 | 2.0 | April 8, 2026 | Evelyn Jones | **Pipeline-First MVP Update**: Added generation pipeline types, endpoints, error codes, source filtering, generation settings validation |
+| 2.1 | April 8, 2026 | Evelyn Jones | **Source-Specific Generation**: Added 'appstore' source, source-specific triggers ('all' or array), per-source results in GenerationResult, source-specific error codes |
 
 ---
 

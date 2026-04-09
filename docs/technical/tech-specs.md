@@ -1,9 +1,9 @@
 # Idea Forge: Technical Specifications Index
 
 **Status**: Implementation-Ready
-**Version**: 1.1
-**Date**: April 8, 2026
-**Updated**: Pipeline-First MVP
+**Version**: 1.2
+**Date**: April 9, 2026
+**Updated**: App Store Niche Discovery Integration
 
 ---
 
@@ -73,6 +73,10 @@ The automated idea generation pipeline is the heart of the product:
 | **Frontend** | [Frontend Architecture](./frontend-architecture.md) | App Router, components, state management, hooks | Michal Xu |
 | **Data Models** | [API Contracts](./api-contracts.md) | TypeScript interfaces, validation, state machine | Evelyn Jones |
 | **Security** | [Auth & Security](./auth-security.md) | Auth flows, protected routes, security rules | Noah Harris |
+| **Niche Discovery** | [Niche Discovery Integration](./niche-discovery-pipeline-integration-spec.md) | Master integration spec, pipeline architecture, data flow | Theo-Brown |
+| **App Store Source** | [App Store Niche Source](./appstore-niche-source-spec.md) | AppFollow API, data structures, niche scoring | Rotem-Goldman |
+| **Friction Detection** | [Friction Detection Module](./friction-detection-module-spec.md) | Review analysis, friction extraction, pattern classification | Aviv-Yamamoto |
+| **AI Solutions** | [AI Solution Generator](./ai-solution-generator-spec.md) | Friction-to-idea mapping, AI-native app concepts | Wei-Ivanov |
 
 ### Document Purpose
 
@@ -81,6 +85,10 @@ The automated idea generation pipeline is the heart of the product:
 - **Frontend Architecture**: Component hierarchy, routing, state management patterns, and data flow diagrams
 - **API Contracts**: TypeScript types, validation rules, status transitions, and scoring algorithms
 - **Auth & Security**: Authentication flows, session management, and security best practices
+- **Niche Discovery Integration**: Master spec for App Store source integration, pipeline architecture updates, data flow diagrams
+- **App Store Niche Source**: AppFollow API integration, data structures, category configuration, rate limits
+- **Friction Detection Module**: Automated review analysis, AI-powered friction extraction, pattern classification
+- **AI Solution Generator**: Friction-to-idea mapping, AI capability matching, effort reduction calculation
 
 ---
 
@@ -202,6 +210,10 @@ These are the core value features - automated idea generation.
 | **AI Signal Analysis** | [Gemini](./backend-pipeline-spec.md#41-signal-analysis) | - | - | - | - |
 | **AI Idea Generation** | [Gemini](./backend-pipeline-spec.md#42-idea-generation) | [Idea Document](./firestore-schema.md#32-idea-document) | - | - | - |
 | **AI Auto-Scoring** | [Gemini](./backend-pipeline-spec.md#43-idea-scoring) | [Scoring Fields](./firestore-schema.md#32-idea-document) | - | - | - |
+| **App Store Data Collection** | [AppFollow API](./appstore-niche-source-spec.md) | - | - | - | [API Key](./niche-discovery-pipeline-integration-spec.md) |
+| **Friction Detection** | [Friction Module](./friction-detection-module-spec.md) | - | - | - | - |
+| **AI Solution Generation** | [Solution Generator](./ai-solution-generator-spec.md) | [Idea Document](./firestore-schema.md#32-idea-document) | - | - | - |
+| **Weekly Niche Discovery** | [Scheduler](./niche-discovery-pipeline-integration-spec.md) | [GenerationRuns](./firestore-schema.md#34-generation-run-document) | - | - | [API Keys](./niche-discovery-pipeline-integration-spec.md) |
 | **Generation Settings** | - | [User Document](./firestore-schema.md#31-user-document) | [SettingsPanel](./backend-pipeline-spec.md#82-generation-settings-panel) | [User Settings](./firestore-schema.md#35-settings-document) | [Owner Only](./firestore-schema.md#6-security-rules) |
 | **Generation History** | - | [GenerationRuns](./firestore-schema.md#34-generation-run-document) | - | [GET /history](./backend-pipeline-spec.md#73-generation-history-endpoint) | [Read Only](./firestore-schema.md#6-security-rules) |
 | **NEW Badge (Freshness)** | - | [viewedAt Field](./firestore-schema.md#32-idea-document) | [IdeaCard](./frontend-architecture.md#41-dashboard-page) | - | - |
@@ -477,6 +489,43 @@ Phase 9: Polish
     ├── Bundle optimization
     ├── Query optimization
     └── Core Web Vitals
+
+Phase 10: App Store Niche Discovery (NEW)
+├── 10.1 Infrastructure Setup
+│   ├── Configure APPFOLLOW_API_KEY in Secret Manager
+│   ├── Add new Firestore fields per schema spec
+│   ├── Create weekly Cloud Scheduler (Sunday 2 AM UTC)
+│   └── Grant Cloud Functions access to new secrets
+│
+├── 10.2 Data Source Integration
+│   ├── Implement AppFollow API client
+│   ├── Implement fetchAppStoreSignals() function
+│   ├── Add niche discovery configuration
+│   └── Set up rate limiting and error handling
+│
+├── 10.3 Friction Detection Module
+│   ├── Implement review fetching (app-store-scraper, google-play-scraper)
+│   ├── Implement Gemini friction extraction
+│   ├── Create pattern aggregation logic
+│   └── Add friction scoring system
+│
+├── 10.4 AI Solution Generator
+│   ├── Implement friction clustering
+│   ├── Implement AI solution mapping (Gemini)
+│   ├── Create AI-native idea schema
+│   └── Add effort reduction calculation
+│
+├── 10.5 Pipeline Integration
+│   ├── Create generateNicheIdeasScheduled function
+│   ├── Update generateIdeas to support source parameter
+│   ├── Implement source-specific generation
+│   └── Test with Firebase emulator
+│
+└── 10.6 Frontend Updates
+    ├── Add "App Store Insight" purple ribbon on niche ideas
+    ├── Add App Store checkbox to generation settings
+    ├── Add "From App Store" generate button
+    └── Display friction source metadata in idea detail
 ```
 
 ---
@@ -597,6 +646,7 @@ idea-forge/
 |---------|------|--------|
 | 1.0 | April 8, 2026 | Initial technical specifications release |
 | 1.1 | April 8, 2026 | Pipeline-First MVP: Added pipeline spec, updated architecture, reordered implementation phases |
+| 1.2 | April 9, 2026 | App Store Niche Discovery: Added 4 new spec documents, Phase 10 implementation sequence, new pipeline features |
 
 ---
 
@@ -610,6 +660,10 @@ idea-forge/
 | API Contracts | Evelyn Jones | Tech Specs Worker |
 | Auth & Security | Noah Harris | Tech Specs Worker |
 | Tech Specs Index | Hana Rosenberg | Tech Specs Worker |
+| Niche Discovery Integration | Theo-Brown | Tech Specs Worker |
+| App Store Niche Source | Rotem-Goldman | Tech Specs Worker |
+| Friction Detection Module | Aviv-Yamamoto | Tech Specs Worker |
+| AI Solution Generator | Wei-Ivanov | Tech Specs Worker |
 
 ---
 

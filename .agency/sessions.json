@@ -1,312 +1,71 @@
 [
   {
-    "id": "session-1",
-    "name": "Manager ideation",
-    "role": "manager",
-    "team": "ideation",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775646931965,
-    "createdAt": 1775646931966,
-    "avatar": "🦃"
-  },
-  {
-    "id": "session-2",
-    "name": "Zoe-Evans",
-    "role": "worker",
-    "team": "ideation",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775646915834,
-    "createdAt": 1775646915834,
-    "avatar": "🦜"
-  },
-  {
     "id": "session-3",
     "name": "Manager ideation #2",
     "role": "manager",
     "team": "ideation-2",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672940872,
-    "createdAt": 1775672940873,
-    "avatar": "🦑"
+    "lastActive": 1775691554964,
+    "createdAt": 1775691554964
   },
   {
-    "id": "session-4",
-    "name": "Emma-Clark",
-    "role": "worker",
-    "team": "ideation-2",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672136513,
-    "createdAt": 1775672136514,
-    "avatar": "🦁"
-  },
-  {
-    "id": "session-5",
-    "name": "Ayelet-Davis",
-    "role": "worker",
-    "team": "ideation-2",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672296709,
-    "createdAt": 1775672296727,
-    "avatar": "🐨"
-  },
-  {
-    "id": "session-6",
-    "name": "Aviv-Ben-David",
-    "role": "worker",
-    "team": "ideation-2",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672296660,
-    "createdAt": 1775672296660,
-    "avatar": "🦎"
-  },
-  {
-    "id": "session-7",
-    "name": "Hannah-Davidov",
-    "role": "worker",
-    "team": "ideation-2",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672296686,
-    "createdAt": 1775672296688,
-    "avatar": "🦄"
-  },
-  {
-    "id": "session-8",
-    "name": "Manager product specs",
-    "role": "manager",
-    "team": "product-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775671781432,
-    "createdAt": 1775671781432,
-    "avatar": "🦇"
-  },
-  {
-    "id": "session-9",
-    "name": "Wei-Bergman",
-    "role": "worker",
-    "team": "product-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775670751915,
-    "createdAt": 1775670751915,
-    "avatar": "🐢"
-  },
-  {
-    "id": "session-10",
-    "name": "Yonatan-Weiss",
-    "role": "worker",
-    "team": "product-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775671820686,
-    "createdAt": 1775671820686,
-    "avatar": "🐯"
-  },
-  {
-    "id": "session-11",
-    "name": "Noah-Volkov",
-    "role": "worker",
-    "team": "product-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775671093760,
-    "createdAt": 1775671093760,
-    "avatar": "🐬"
-  },
-  {
-    "id": "session-12",
-    "name": "Amelia-Goldstein",
-    "role": "worker",
-    "team": "product-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775671820510,
-    "createdAt": 1775671820510,
-    "avatar": "🦚"
-  },
-  {
-    "id": "session-13",
-    "name": "Manager design",
-    "role": "manager",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775652901144,
-    "createdAt": 1775652901145,
-    "avatar": "🐧"
-  },
-  {
-    "id": "session-14",
-    "name": "Noya-Volkov",
-    "role": "worker",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775650384727,
-    "createdAt": 1775650384727,
-    "avatar": "🦭"
-  },
-  {
-    "id": "session-15",
-    "name": "Manager design",
-    "role": "manager",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775665618018,
-    "createdAt": 1775665618018,
-    "avatar": "🦊"
-  },
-  {
-    "id": "session-16",
-    "name": "Dvir-Polak",
-    "role": "worker",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775665514463,
-    "createdAt": 1775665514463,
-    "avatar": "🐞"
-  },
-  {
-    "id": "session-17",
-    "name": "Manager design #2",
-    "role": "manager",
-    "team": "design-2",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775660697613,
-    "createdAt": 1775660697615,
-    "avatar": "🐌"
-  },
-  {
-    "id": "session-18",
-    "name": "Mateo-Garcia",
-    "role": "worker",
-    "team": "design-2",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775660235880,
-    "createdAt": 1775660235880,
-    "avatar": "🦬"
-  },
-  {
-    "id": "session-19",
-    "name": "Manager design",
-    "role": "manager",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672929088,
-    "createdAt": 1775672929089,
-    "avatar": "🐙"
-  },
-  {
-    "id": "session-20",
-    "name": "Freya-Olsen",
-    "role": "worker",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672929063,
-    "createdAt": 1775672929063,
-    "avatar": "🦃"
-  },
-  {
-    "id": "session-21",
-    "name": "Hila-Mor",
-    "role": "worker",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672980757,
-    "createdAt": 1775672980757,
-    "avatar": "🦀"
-  },
-  {
-    "id": "session-22",
-    "name": "Petra-Park",
-    "role": "worker",
-    "team": "design",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775669380829,
-    "createdAt": 1775669380829,
-    "avatar": "🦦"
-  },
-  {
-    "id": "session-23",
+    "id": "session-39",
     "name": "Manager tech specs",
     "role": "manager",
     "team": "tech-specs",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672247380,
-    "createdAt": 1775672247383,
-    "avatar": "🐞"
+    "lastActive": 1775695149552,
+    "createdAt": 1775695149552,
+    "avatar": "🦉"
   },
   {
-    "id": "session-24",
-    "name": "Hana-Rosenberg",
+    "id": "session-40",
+    "name": "Dvir-Sato",
     "role": "worker",
     "team": "tech-specs",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672167904,
-    "createdAt": 1775672167907,
-    "avatar": "🦋"
+    "lastActive": 1775695149560,
+    "createdAt": 1775695149560,
+    "avatar": "🦈"
   },
   {
-    "id": "session-25",
-    "name": "Michal-Xu",
-    "role": "worker",
-    "team": "tech-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672089212,
-    "createdAt": 1775672089213,
-    "avatar": "🐝"
-  },
-  {
-    "id": "session-26",
-    "name": "Evelyn-Jones",
-    "role": "worker",
-    "team": "tech-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672068015,
-    "createdAt": 1775672068019,
-    "avatar": "🦬"
-  },
-  {
-    "id": "session-27",
-    "name": "Noah-Harris",
-    "role": "worker",
-    "team": "tech-specs",
-    "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775672089247,
-    "createdAt": 1775672089247,
-    "avatar": "🐼"
-  },
-  {
-    "id": "session-28",
+    "id": "session-41",
     "name": "Manager active dev",
     "role": "manager",
     "team": "active-dev",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775673018302,
-    "createdAt": 1775673018302,
-    "avatar": "🦩"
+    "lastActive": 1775695347199,
+    "createdAt": 1775695347199,
+    "avatar": "🦄"
   },
   {
-    "id": "session-29",
-    "name": "Eliana-Nakamura",
+    "id": "session-42",
+    "name": "Dvir-Ivanov",
     "role": "worker",
     "team": "active-dev",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775673007712,
-    "createdAt": 1775673007712,
-    "avatar": "🐸"
+    "lastActive": 1775693750539,
+    "createdAt": 1775693750543,
+    "avatar": "🦦"
   },
   {
-    "id": "session-30",
-    "name": "Logan-Chen",
+    "id": "session-43",
+    "name": "Sarah-Friedman",
     "role": "worker",
     "team": "active-dev",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775673018066,
-    "createdAt": 1775673018066,
-    "avatar": "🐌"
+    "lastActive": 1775693750540,
+    "createdAt": 1775693750544,
+    "avatar": "🦇"
   },
   {
-    "id": "session-31",
-    "name": "Roni-Green",
+    "id": "session-44",
+    "name": "Yuki-Muller",
     "role": "worker",
     "team": "active-dev",
     "projectPath": "/Users/eladhakim/StudioProjects/SparkEngine",
-    "lastActive": 1775673018171,
-    "createdAt": 1775673018172,
-    "avatar": "🦅"
+    "lastActive": 1775694668979,
+    "createdAt": 1775694668979,
+    "avatar": "🦚"
   }
 ]

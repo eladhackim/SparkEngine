@@ -1,8 +1,8 @@
 # Idea Forge: Backend Pipeline Specification
 
 **Status**: Implementation-Ready
-**Version**: 1.0
-**Date**: April 8, 2026
+**Version**: 1.1
+**Date**: April 9, 2026
 **Author**: Ideation Manager
 **Priority**: CRITICAL - This is the core value proposition
 
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This document specifies the **automated idea generation pipeline** - the core feature of Idea Forge. The system monitors multiple data sources (X/Twitter, Polymarket, Google News), identifies trends and opportunities, and uses AI to generate scored business ideas automatically.
+This document specifies the **automated idea generation pipeline** - the core feature of Idea Forge. The system monitors multiple data sources (X/Twitter, Polymarket, Google News, App Store), identifies trends and opportunities, and uses AI to generate scored business ideas automatically.
 
 ### Key Requirements
 
@@ -47,12 +47,12 @@ This document specifies the **automated idea generation pipeline** - the core fe
 │                       ▼                                                      │
 │  STAGE 1: DATA COLLECTION                                                    │
 │  ────────────────────────                                                    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │   fetchX    │  │fetchPolymarket│ │fetchGoogleNews│ │ fetchOther │        │
-│  │  (Grok API) │  │  (REST API)  │  │  (News API)  │  │ (Extensible)│        │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
-│         │                │                │                 │                │
-│         └────────────────┴────────────────┴─────────────────┘                │
+│  ┌───────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐ ┌───────────┐ │
+│  │  fetchX   │ │fetchPolymarket│ │fetchGoogleNews│ │fetchAppStore│ │fetchOther│ │
+│  │(Grok API) │ │ (REST API)  │ │ (News API)  │ │(Gemini API)│ │(Extensible)│ │
+│  └─────┬─────┘ └──────┬──────┘ └──────┬──────┘ └─────┬─────┘ └─────┬─────┘ │
+│        │              │               │              │             │         │
+│        └──────────────┴───────────────┴──────────────┴─────────────┘         │
 │                                   │                                          │
 │                                   ▼                                          │
 │  STAGE 2: SIGNAL ANALYSIS                                                    │
@@ -128,7 +128,7 @@ const NEWS_API_KEY = defineSecret('NEWS_API_KEY');
 
 interface GenerationConfig {
   userId: string;
-  sources: ('x' | 'polymarket' | 'googlenews')[];
+  sources: ('x' | 'polymarket' | 'googlenews' | 'appstore')[];
   ideasPerRun: number;  // Default: 10
   categories?: string[];  // Filter to specific categories
 }
@@ -168,7 +168,7 @@ export const generateIdeasHttp = onRequest(
 
     const config: GenerationConfig = {
       userId,
-      sources: req.body.sources || ['x', 'polymarket', 'googlenews'],
+      sources: req.body.sources || ['x', 'polymarket', 'googlenews', 'appstore'],
       ideasPerRun: req.body.ideasPerRun || 10,
       categories: req.body.categories,
     };
@@ -200,7 +200,7 @@ export const generateIdeasScheduled = onSchedule(
     for (const userDoc of usersSnapshot.docs) {
       const config: GenerationConfig = {
         userId: userDoc.id,
-        sources: userDoc.data().generationSources || ['x', 'polymarket', 'googlenews'],
+        sources: userDoc.data().generationSources || ['x', 'polymarket', 'googlenews', 'appstore'],
         ideasPerRun: userDoc.data().ideasPerRun || 10,
       };
 
@@ -223,6 +223,7 @@ export const generateIdeasScheduled = onSchedule(
 import { fetchXTrends } from './sources/x';
 import { fetchPolymarketSignals } from './sources/polymarket';
 import { fetchGoogleNews } from './sources/googlenews';
+import { fetchAppStoreTrends } from './sources/appstore';
 import { analyzeSignals } from './ai/analyzeSignals';
 import { generateFromSignals } from './ai/generateIdeas';
 import { scoreIdeas } from './ai/scoreIdeas';
@@ -248,6 +249,9 @@ export async function runGenerationPipeline(
     }
     if (config.sources.includes('googlenews')) {
       sourcePromises.push(fetchGoogleNews().catch(e => { errors.push(`News: ${e.message}`); return null; }));
+    }
+    if (config.sources.includes('appstore')) {
+      sourcePromises.push(fetchAppStoreTrends().catch(e => { errors.push(`AppStore: ${e.message}`); return null; }));
     }
 
     const sourceResults = await Promise.all(sourcePromises);
@@ -531,6 +535,94 @@ function extractTopicsFromHeadlines(headlines: string[]): string[] {
     .map(([word]) => word);
 }
 ```
+
+### 3.4 App Store Integration
+
+```typescript
+// functions/src/pipeline/sources/appstore.ts
+
+interface AppStoreData {
+  source: 'appstore';
+  trendingApps: {
+    name: string;
+    category: string;
+    rank: number;
+    rankChange: number;  // Positive = rising, negative = falling
+    description: string;
+  }[];
+  emergingCategories: {
+    category: string;
+    growthRate: number;  // Percentage growth
+    topApps: string[];
+  }[];
+  gapOpportunities: {
+    category: string;
+    missingFeatures: string[];
+    userComplaints: string[];
+  }[];
+  fetchedAt: Date;
+}
+
+export async function fetchAppStoreTrends(): Promise<AppStoreData> {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+
+  // Use Gemini to analyze App Store trends
+  // Note: For production, consider integrating with App Store Connect API
+  // or third-party services like AppAnnie, SensorTower, or data.ai
+  const prompt = `You are an App Store market analyst with knowledge of current app trends.
+
+Analyze the current App Store landscape and identify:
+1. Trending apps that are rising in rankings (focus on productivity, tools, games, utilities)
+2. Emerging app categories showing growth
+3. Gap opportunities - categories where users are complaining about missing features
+
+Return a JSON object with this structure:
+{
+  "trendingApps": [
+    { "name": "AppName", "category": "Productivity", "rank": 5, "rankChange": 10, "description": "Brief description" }
+  ],
+  "emergingCategories": [
+    { "category": "AI Tools", "growthRate": 150, "topApps": ["App1", "App2"] }
+  ],
+  "gapOpportunities": [
+    { "category": "Finance", "missingFeatures": ["Feature1"], "userComplaints": ["Complaint1"] }
+  ]
+}
+
+Focus on opportunities relevant to solo developers and small teams.
+Include at least 10 trending apps, 5 emerging categories, and 5 gap opportunities.`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.7,
+        },
+      }),
+    }
+  );
+
+  const data = await response.json();
+  const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+
+  return {
+    source: 'appstore',
+    ...parsed,
+    fetchedAt: new Date(),
+  };
+}
+```
+
+**Note**: For enhanced accuracy, consider integrating with:
+- **App Store Connect API**: Official Apple API for app analytics
+- **data.ai (formerly App Annie)**: Comprehensive app market data
+- **SensorTower**: App store intelligence and insights
+- **Mobile Action**: App Store optimization and analytics
 
 ---
 
@@ -908,7 +1000,7 @@ Add to user document schema:
 // Additional fields for /users/{userId} document
 interface UserGenerationSettings {
   autoGenerationEnabled: boolean;  // Default: true
-  generationSources: ('x' | 'polymarket' | 'googlenews')[];  // Default: all
+  generationSources: ('x' | 'polymarket' | 'googlenews' | 'appstore')[];  // Default: all
   ideasPerRun: number;  // Default: 10, max: 25
   preferredCategories?: string[];  // Optional category filter
   generationTime?: string;  // Future: custom schedule time
@@ -928,7 +1020,7 @@ interface UserGenerationSettings {
 **Request Body**:
 ```typescript
 {
-  sources?: ('x' | 'polymarket' | 'googlenews')[];  // Default: all
+  sources?: ('x' | 'polymarket' | 'googlenews' | 'appstore')[];  // Default: all
   ideasPerRun?: number;  // Default: 10, max: 25
   categories?: string[];  // Optional filter
 }
@@ -1013,7 +1105,7 @@ export function GenerateIdeasButton() {
     setIsGenerating(true);
     try {
       const result = await generate({
-        sources: ['x', 'polymarket', 'googlenews'],
+        sources: ['x', 'polymarket', 'googlenews', 'appstore'],
         ideasPerRun: 10,
       });
       toast.success(`Generated ${result.ideasSaved} new ideas!`);
@@ -1096,6 +1188,10 @@ export function GenerationSettings() {
               label="Google News"
               checked={settings?.generationSources?.includes('googlenews')}
             />
+            <Checkbox
+              label="App Store Trends"
+              checked={settings?.generationSources?.includes('appstore')}
+            />
           </div>
         </div>
       </CardContent>
@@ -1116,16 +1212,22 @@ export function GenerationSettings() {
 | Gemini API (analysis + generation + scoring) | $0.10 - $0.30 |
 | News API | Free tier (500 requests/day) |
 | Polymarket API | Free |
+| App Store Analysis (via Gemini) | $0.02 - $0.05 |
 | Cloud Functions execution | $0.01 - $0.02 |
-| **Total per run** | **~$0.20 - $0.50** |
+| **Total per run** | **~$0.22 - $0.55** |
+
+**Note**: App Store analysis uses Gemini API for trend analysis. For production, consider:
+- **data.ai API**: ~$500+/month (enterprise pricing)
+- **SensorTower API**: Custom pricing
+- **App Store Connect API**: Free (requires Apple Developer account)
 
 ### 9.2 Monthly Costs (Daily Runs)
 
 | Usage | Est. Monthly Cost |
 |-------|-------------------|
-| 30 runs (daily) | $6 - $15 |
-| + 10 manual runs | +$2 - $5 |
-| **Total** | **~$8 - $20/month** |
+| 30 runs (daily) | $6.60 - $16.50 |
+| + 10 manual runs | +$2.20 - $5.50 |
+| **Total** | **~$9 - $22/month** |
 
 ---
 
@@ -1203,6 +1305,7 @@ export function GenerationSettings() {
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | April 8, 2026 | Ideation Manager | Initial backend pipeline specification |
+| 1.1 | April 9, 2026 | Tech Specs Worker | Added App Store as 4th data source (Section 3.4) |
 
 ---
 

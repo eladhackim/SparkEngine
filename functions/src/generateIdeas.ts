@@ -37,7 +37,7 @@ export const generateIdeasHttp = onRequest(
   },
   async (req, res) => {
     // Set CORS headers manually
-    const allowedOrigins = ['https://sparkengine-3740d.web.app', 'http://localhost:3000'];
+    const allowedOrigins = ['https://sparkengine-3740d.web.app', 'https://sparkengine.online', 'http://localhost:3000'];
     const origin = req.headers.origin || '';
     if (allowedOrigins.includes(origin)) {
       res.set('Access-Control-Allow-Origin', origin);

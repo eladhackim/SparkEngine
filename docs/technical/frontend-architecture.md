@@ -1,10 +1,10 @@
 # Idea Forge: Frontend Architecture Specification
 
-**Version**: 2.0
+**Version**: 2.1
 **Author**: Michal Xu (Tech Specs Worker)
-**Date**: April 8, 2026
+**Date**: April 9, 2026
 **Status**: Complete
-**Updated**: Pipeline-First MVP support added
+**Updated**: Source-specific generation buttons added
 
 ---
 
@@ -104,11 +104,12 @@ components/
 │   └── ai-reasoning-section.tsx     # AI-generated strengths/risks/pitch
 │
 ├── generation/                      # AI Generation components
-│   ├── generate-button.tsx          # Main "Generate Ideas" button
+│   ├── generate-button-group.tsx    # Button group with source dropdown
 │   ├── generation-progress.tsx      # Progress indicator during generation
 │   ├── generation-settings.tsx      # Settings panel/modal
 │   ├── generation-history.tsx       # Past generation runs list
-│   └── source-filter.tsx            # Filter by idea source
+│   ├── source-filter.tsx            # Filter by idea source
+│   └── source-icons.tsx             # Icons for each data source
 │
 ├── notes/                           # Notes components
 │   ├── notes-list.tsx               # Notes section
@@ -266,10 +267,19 @@ Filters and sorting are URL-driven for shareability:
 DashboardLayout
 ├── Header
 │   ├── Logo
-│   ├── **GenerateIdeasButton** ← PRIMARY ACTION (prominent placement)
-│   │   ├── SparklesIcon
-│   │   ├── Label ("Generate Ideas")
-│   │   └── Spinner (during generation)
+│   ├── **GenerateButtonGroup** ← PRIMARY ACTION (button + dropdown)
+│   │   ├── GenerateButton (main button)
+│   │   │   ├── SparklesIcon
+│   │   │   ├── Label ("Generate Ideas")
+│   │   │   └── Spinner (during generation)
+│   │   └── SourceDropdown (chevron button)
+│   │       ├── "From X/Twitter only"
+│   │       ├── "From Polymarket only"
+│   │       ├── "From News only"
+│   │       ├── "From App Store only"
+│   │       ├── ───────────────────
+│   │       ├── "X + Polymarket"
+│   │       └── "News + App Store"
 │   ├── SearchInput (desktop: visible, mobile: icon toggle)
 │   ├── NewIdeaButton (secondary - manual entry)
 │   ├── SettingsButton (opens SettingsDrawer)
@@ -277,9 +287,11 @@ DashboardLayout
 │       ├── UserAvatar
 │       └── DropdownMenu (Settings, Logout)
 │
-├── **GenerationProgress** ← SHOWS DURING GENERATION
+├── **GenerationProgress** ← SHOWS DURING GENERATION (with source indicator)
+│   ├── SourceIcon (animated, shows current source being processed)
+│   ├── SourceBadges (shows all sources, highlights current)
 │   ├── ProgressBar
-│   ├── StageIndicator (Collecting → Analyzing → Generating → Scoring → Saving)
+│   ├── StageLabel (e.g., "Collecting from X/Twitter...")
 │   ├── EstimatedTimeRemaining
 │   └── CancelButton
 │
@@ -326,7 +338,7 @@ DashboardLayout
 │   ├── Illustration
 │   ├── Title ("No ideas yet" or "Generate your first ideas")
 │   ├── Description
-│   └── **GenerateIdeasButton** ← PRIMARY CTA in empty state
+│   └── **GenerateButtonGroup** ← PRIMARY CTA (fullWidth variant)
 │
 ├── LoadMoreButton / InfiniteScrollTrigger
 │
@@ -805,7 +817,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### 5.6 Generation Hooks (NEW)
+### 5.6 Generation Hooks (UPDATED)
 
 ```typescript
 // hooks/use-generate-ideas.ts
@@ -813,9 +825,13 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { generationKeys, ideaKeys } from '@/lib/queries/query-keys';
 import { triggerGeneration } from '@/lib/firebase/generation';
+import { DataSource } from '@/lib/utils/source-icons';
+
+// Source input can be 'all' or array of specific sources
+type SourcesInput = 'all' | DataSource[];
 
 interface GenerationInput {
-  sources?: ('x' | 'polymarket' | 'googlenews')[];
+  sources?: SourcesInput;
   ideasPerRun?: number;
   categories?: string[];
 }
@@ -826,20 +842,42 @@ interface GenerationResult {
   ideasGenerated: number;
   ideasSaved: number;
   duration: number;
+  sourcesUsed: DataSource[];
   errors: string[];
 }
+
+// Default sources when 'all' is specified
+const ALL_SOURCES: DataSource[] = ['x', 'polymarket', 'googlenews', 'appstore'];
 
 export function useGenerateIdeas() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: GenerationInput) => triggerGeneration(input),
+    mutationFn: (input: GenerationInput) => {
+      // Resolve 'all' to actual sources array
+      const resolvedSources = input.sources === 'all'
+        ? ALL_SOURCES
+        : input.sources || ALL_SOURCES;
 
-    onMutate: async () => {
-      // Set generation status to "running"
+      return triggerGeneration({
+        ...input,
+        sources: resolvedSources,
+      });
+    },
+
+    onMutate: async (input) => {
+      // Resolve sources for status display
+      const resolvedSources = input.sources === 'all'
+        ? ALL_SOURCES
+        : input.sources || ALL_SOURCES;
+
+      // Set generation status to "running" with source info
       queryClient.setQueryData(generationKeys.status(), {
         isGenerating: true,
         stage: 'collecting',
+        sources: resolvedSources,
+        currentSource: resolvedSources[0],  // First source being processed
+        progress: 0,
         startedAt: new Date().toISOString(),
       });
     },
@@ -857,16 +895,32 @@ export function useGenerateIdeas() {
 
       // Invalidate history
       queryClient.invalidateQueries({ queryKey: generationKeys.history() });
+
+      // Show success toast with source info
+      const sourceLabel = result.sourcesUsed.length === ALL_SOURCES.length
+        ? 'all sources'
+        : result.sourcesUsed.map(s => sourceConfig[s].shortLabel).join(', ');
+      toast.success(`Generated ${result.ideasSaved} ideas from ${sourceLabel}!`);
     },
 
-    onError: (error) => {
+    onError: (error, input) => {
+      const resolvedSources = input.sources === 'all'
+        ? ALL_SOURCES
+        : input.sources || ALL_SOURCES;
+
       queryClient.setQueryData(generationKeys.status(), {
         isGenerating: false,
+        sources: resolvedSources,
         error: error.message,
       });
     },
   });
 }
+
+// Usage examples:
+// generate({ sources: 'all' });                    // All 4 sources
+// generate({ sources: ['x'] });                    // X/Twitter only
+// generate({ sources: ['polymarket', 'appstore'] }); // Specific combo
 ```
 
 ```typescript
@@ -875,17 +929,21 @@ export function useGenerateIdeas() {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { generationKeys } from '@/lib/queries/query-keys';
 import { fetchGenerationStatus } from '@/lib/firebase/generation';
+import { DataSource } from '@/lib/utils/source-icons';
 
 interface GenerationStatus {
   isGenerating: boolean;
   stage?: 'collecting' | 'analyzing' | 'generating' | 'scoring' | 'saving';
-  progress?: number;  // 0-100
+  sources?: DataSource[];       // All sources being used in this run
+  currentSource?: DataSource;   // Which source is currently being processed
+  progress?: number;            // 0-100
   startedAt?: string;
   estimatedTimeRemaining?: number;  // seconds
   lastRun?: {
     runId: string;
     timestamp: string;
     ideasGenerated: number;
+    sourcesUsed: DataSource[];
     success: boolean;
   };
   error?: string;
@@ -948,10 +1006,13 @@ import { fetchGenerationSettings, updateGenerationSettings } from '@/lib/firebas
 
 interface GenerationSettings {
   autoGenerationEnabled: boolean;
-  generationSources: ('x' | 'polymarket' | 'googlenews')[];
+  generationSources: DataSource[];  // Now includes 'appstore'
   ideasPerRun: number;
   preferredCategories?: string[];
 }
+
+// DataSource type (from lib/utils/source-icons.ts)
+// type DataSource = 'x' | 'polymarket' | 'googlenews' | 'appstore';
 
 export function useGenerationSettings() {
   return useQuery({
@@ -1100,7 +1161,9 @@ const tierColors = {
 | `onEdit` | `(noteId: string, content: string) => void` | Edit note |
 | `onDelete` | `(noteId: string) => void` | Delete note |
 
-### 6.7 GenerateIdeasButton (NEW)
+### 6.7 GenerateButtonGroup (UPDATED)
+
+Replaces single button with a button group that supports source-specific generation.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1112,91 +1175,291 @@ const tierColors = {
 | State | Type | Purpose |
 |-------|------|---------|
 | `isGenerating` | `boolean` | From useGenerationStatus hook |
+| `isDropdownOpen` | `boolean` | Source dropdown visibility |
+
+**Data Source Type**:
+```typescript
+type DataSource = 'x' | 'polymarket' | 'googlenews' | 'appstore';
+type SourcesInput = 'all' | DataSource[];
+```
+
+**Source Icons**:
+```typescript
+// lib/utils/source-icons.tsx
+
+import { XIcon, ChartBarIcon, NewspaperIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
+
+export const sourceConfig = {
+  x: {
+    icon: XIcon,  // X/Twitter logo
+    label: 'X/Twitter',
+    shortLabel: 'X',
+    color: 'text-gray-900',
+  },
+  polymarket: {
+    icon: ChartBarIcon,  // Prediction/chart icon
+    label: 'Polymarket',
+    shortLabel: 'Polymarket',
+    color: 'text-blue-600',
+  },
+  googlenews: {
+    icon: NewspaperIcon,  // Newspaper icon
+    label: 'Google News',
+    shortLabel: 'News',
+    color: 'text-red-500',
+  },
+  appstore: {
+    icon: Squares2X2Icon,  // Grid/apps icon
+    label: 'App Store',
+    shortLabel: 'Apps',
+    color: 'text-blue-500',
+  },
+} as const;
+
+export type DataSource = keyof typeof sourceConfig;
+```
 
 **Implementation**:
 ```typescript
-export function GenerateIdeasButton({ variant = 'primary', size = 'md', fullWidth = false }) {
+// components/generation/generate-button-group.tsx
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { sourceConfig, DataSource } from '@/lib/utils/source-icons';
+
+interface GenerateButtonGroupProps {
+  variant?: 'primary' | 'secondary';
+  size?: 'sm' | 'md' | 'lg';
+  fullWidth?: boolean;
+}
+
+export function GenerateButtonGroup({
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false
+}: GenerateButtonGroupProps) {
   const { mutate: generate, isPending } = useGenerateIdeas();
   const { data: status } = useGenerationStatus();
   const { data: settings } = useGenerationSettings();
 
   const isGenerating = isPending || status?.isGenerating;
 
-  const handleGenerate = () => {
+  const handleGenerate = (sources: 'all' | DataSource[]) => {
     generate({
-      sources: settings?.generationSources,
+      sources: sources === 'all' ? settings?.generationSources : sources,
       ideasPerRun: settings?.ideasPerRun,
     });
   };
 
   return (
-    <Button
-      onClick={handleGenerate}
-      disabled={isGenerating}
-      variant={variant}
-      size={size}
-      className={cn('gap-2', fullWidth && 'w-full')}
-    >
-      {isGenerating ? (
-        <>
-          <Spinner className="w-4 h-4" />
-          Generating...
-        </>
-      ) : (
-        <>
-          <SparklesIcon className="w-4 h-4" />
-          Generate Ideas
-        </>
-      )}
-    </Button>
+    <div className={cn('flex', fullWidth && 'w-full')}>
+      {/* Primary: Generate from All Sources */}
+      <Button
+        onClick={() => handleGenerate('all')}
+        disabled={isGenerating}
+        variant={variant}
+        size={size}
+        className={cn(
+          'gap-2 rounded-r-none',
+          fullWidth && 'flex-1'
+        )}
+      >
+        {isGenerating ? (
+          <>
+            <Spinner className="w-4 h-4" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <SparklesIcon className="w-4 h-4" />
+            Generate Ideas
+          </>
+        )}
+      </Button>
+
+      {/* Dropdown for specific sources */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size={size}
+            disabled={isGenerating}
+            className="rounded-l-none border-l-0 px-2"
+          >
+            <ChevronDownIcon className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={() => handleGenerate(['x'])}>
+            <sourceConfig.x.icon className={cn('w-4 h-4 mr-2', sourceConfig.x.color)} />
+            From X/Twitter only
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleGenerate(['polymarket'])}>
+            <sourceConfig.polymarket.icon className={cn('w-4 h-4 mr-2', sourceConfig.polymarket.color)} />
+            From Polymarket only
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleGenerate(['googlenews'])}>
+            <sourceConfig.googlenews.icon className={cn('w-4 h-4 mr-2', sourceConfig.googlenews.color)} />
+            From News only
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleGenerate(['appstore'])}>
+            <sourceConfig.appstore.icon className={cn('w-4 h-4 mr-2', sourceConfig.appstore.color)} />
+            From App Store only
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => handleGenerate(['x', 'polymarket'])}>
+            <SparklesIcon className="w-4 h-4 mr-2 text-purple-500" />
+            X + Polymarket
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleGenerate(['googlenews', 'appstore'])}>
+            <SparklesIcon className="w-4 h-4 mr-2 text-purple-500" />
+            News + App Store
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 ```
 
-### 6.8 GenerationProgress (NEW)
+**Mobile Variant** (full-width with sheet instead of dropdown):
+```typescript
+// On mobile, use a bottom sheet for source selection
+export function GenerateButtonMobile() {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // ... similar logic with Sheet component
+}
+```
+
+### 6.8 GenerationProgress (UPDATED)
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `onCancel` | `() => void` | Cancel handler (optional) |
 
-**Stages**:
-| Stage | Label | Progress % |
-|-------|-------|------------|
-| `collecting` | "Collecting market data..." | 0-20% |
-| `analyzing` | "Analyzing trends..." | 20-40% |
-| `generating` | "Generating ideas..." | 40-70% |
-| `scoring` | "Scoring ideas..." | 70-90% |
-| `saving` | "Saving to portfolio..." | 90-100% |
+**Stages with Source-Specific Messages**:
+| Stage | Default Label | Source-Specific Label |
+|-------|---------------|----------------------|
+| `collecting` | "Collecting market data..." | "Collecting from X/Twitter...", "Collecting from Polymarket...", etc. |
+| `analyzing` | "Analyzing trends..." | "Analyzing X trends...", "Analyzing prediction markets...", etc. |
+| `generating` | "Generating ideas..." | Same for all sources |
+| `scoring` | "Scoring ideas..." | Same for all sources |
+| `saving` | "Saving to portfolio..." | Same for all sources |
+
+**Progress Breakdown by Source**:
+| Stage | Single Source % | Multiple Sources % |
+|-------|-----------------|-------------------|
+| `collecting` | 0-25% | 0-20% (split across sources) |
+| `analyzing` | 25-45% | 20-40% |
+| `generating` | 45-70% | 40-70% |
+| `scoring` | 70-90% | 70-90% |
+| `saving` | 90-100% | 90-100% |
 
 **Implementation**:
 ```typescript
+// components/generation/generation-progress.tsx
+
+import { sourceConfig, DataSource } from '@/lib/utils/source-icons';
+
+interface GenerationStatus {
+  isGenerating: boolean;
+  stage: 'collecting' | 'analyzing' | 'generating' | 'scoring' | 'saving';
+  currentSource?: DataSource;  // Which source is currently being processed
+  sources: DataSource[];       // All sources being used
+  progress: number;
+  estimatedTimeRemaining?: number;
+}
+
 export function GenerationProgress({ onCancel }: { onCancel?: () => void }) {
   const { data: status } = useGenerationStatus();
 
   if (!status?.isGenerating) return null;
 
-  const stageLabels = {
-    collecting: 'Collecting market data...',
-    analyzing: 'Analyzing trends...',
-    generating: 'Generating ideas...',
-    scoring: 'Scoring ideas...',
-    saving: 'Saving to portfolio...',
+  // Source-specific labels for collecting stage
+  const getCollectingLabel = (source?: DataSource): string => {
+    if (!source) return 'Collecting market data...';
+    const labels: Record<DataSource, string> = {
+      x: 'Collecting from X/Twitter...',
+      polymarket: 'Collecting from Polymarket...',
+      googlenews: 'Collecting from Google News...',
+      appstore: 'Collecting from App Store...',
+    };
+    return labels[source];
   };
+
+  // Source-specific labels for analyzing stage
+  const getAnalyzingLabel = (source?: DataSource): string => {
+    if (!source) return 'Analyzing trends...';
+    const labels: Record<DataSource, string> = {
+      x: 'Analyzing X trends...',
+      polymarket: 'Analyzing prediction markets...',
+      googlenews: 'Analyzing news headlines...',
+      appstore: 'Analyzing app trends...',
+    };
+    return labels[source];
+  };
+
+  const getStageLabel = (): string => {
+    switch (status.stage) {
+      case 'collecting':
+        return getCollectingLabel(status.currentSource);
+      case 'analyzing':
+        return getAnalyzingLabel(status.currentSource);
+      case 'generating':
+        return 'Generating ideas...';
+      case 'scoring':
+        return 'Scoring ideas...';
+      case 'saving':
+        return 'Saving to portfolio...';
+      default:
+        return 'Processing...';
+    }
+  };
+
+  // Get icon for current source
+  const CurrentSourceIcon = status.currentSource
+    ? sourceConfig[status.currentSource].icon
+    : SparklesIcon;
 
   return (
     <div className="bg-purple-50 border-b border-purple-200 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
-          <Spinner className="w-5 h-5 text-purple-600" />
+          {/* Show source icon during collecting/analyzing, spinner otherwise */}
+          {status.currentSource && ['collecting', 'analyzing'].includes(status.stage) ? (
+            <CurrentSourceIcon className={cn(
+              'w-5 h-5 animate-pulse',
+              sourceConfig[status.currentSource].color
+            )} />
+          ) : (
+            <Spinner className="w-5 h-5 text-purple-600" />
+          )}
           <div className="flex-1">
             <p className="text-sm font-medium text-purple-900">
-              {stageLabels[status.stage || 'collecting']}
+              {getStageLabel()}
             </p>
-            {status.estimatedTimeRemaining && (
-              <p className="text-xs text-purple-600">
-                ~{Math.ceil(status.estimatedTimeRemaining / 60)} min remaining
-              </p>
-            )}
+            <div className="flex items-center gap-2 text-xs text-purple-600">
+              {/* Show source badges for multi-source generation */}
+              {status.sources.length > 1 && (
+                <span className="flex items-center gap-1">
+                  {status.sources.map(src => {
+                    const Icon = sourceConfig[src].icon;
+                    return (
+                      <Icon
+                        key={src}
+                        className={cn(
+                          'w-3 h-3',
+                          status.currentSource === src ? 'opacity-100' : 'opacity-40'
+                        )}
+                      />
+                    );
+                  })}
+                </span>
+              )}
+              {status.estimatedTimeRemaining && (
+                <span>~{Math.ceil(status.estimatedTimeRemaining / 60)} min remaining</span>
+              )}
+            </div>
           </div>
           <Progress value={status.progress || 0} className="w-32" />
         </div>
@@ -1274,7 +1537,7 @@ export function NewBadge({ createdAt, viewedAt }: NewBadgeProps) {
 }
 ```
 
-### 6.11 GenerationSettings (NEW)
+### 6.11 GenerationSettings (UPDATED)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -1285,8 +1548,30 @@ export function NewBadge({ createdAt, viewedAt }: NewBadgeProps) {
 |-------|------|---------|-------------|
 | `autoGenerationEnabled` | `boolean` | `true` | Enable daily auto-generation |
 | `ideasPerRun` | `number` | `10` | Ideas to generate per run (5/10/15/25) |
-| `generationSources` | `string[]` | `['x', 'polymarket', 'googlenews']` | Data sources |
+| `generationSources` | `DataSource[]` | `['x', 'polymarket', 'googlenews', 'appstore']` | Data sources (all 4 by default) |
 | `preferredCategories` | `string[]` | `[]` | Optional category filter |
+
+**Source Selection UI**:
+```typescript
+// In GenerationSettings component
+<div className="space-y-2">
+  <Label>Data Sources</Label>
+  {Object.entries(sourceConfig).map(([key, config]) => {
+    const Icon = config.icon;
+    return (
+      <div key={key} className="flex items-center gap-2">
+        <Checkbox
+          id={`source-${key}`}
+          checked={settings.generationSources.includes(key as DataSource)}
+          onCheckedChange={(checked) => updateSource(key as DataSource, checked)}
+        />
+        <Icon className={cn('w-4 h-4', config.color)} />
+        <Label htmlFor={`source-${key}`}>{config.label}</Label>
+      </div>
+    );
+  })}
+</div>
+```
 
 ### 6.12 GenerationHistory (NEW)
 
@@ -2289,6 +2574,7 @@ function GenerationHistory() {
 |---------|------|--------|---------|
 | 1.0 | April 8, 2026 | Michal Xu | Initial frontend architecture specification |
 | 2.0 | April 8, 2026 | Michal Xu | **Pipeline-First MVP Update**: Added generation components (GenerateIdeasButton, GenerationProgress, GenerationSettings, SourceBadge, NewBadge, GenerationHistory), generation query keys/hooks, polling strategy, updated data flow diagrams, source filtering, Section 11 (Generation UI Patterns) |
+| 2.1 | April 9, 2026 | Michal Xu | **Source-Specific Generation**: Replaced GenerateIdeasButton with GenerateButtonGroup featuring dropdown for source-specific generation, added source-icons.tsx with sourceConfig, updated useGenerateIdeas hook to support `'all' \| DataSource[]`, enhanced GenerationProgress with source-specific messaging, added `appstore` as 4th data source |
 
 ---
 

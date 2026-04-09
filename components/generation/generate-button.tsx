@@ -84,9 +84,9 @@ export function GenerateButton({ onGenerate, isGenerating = false }: GenerateBut
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isGenerating}
-            className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 h-10 rounded-l-none border-l border-l-primary-foreground/20 px-2 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 h-11 w-9 rounded-l-none rounded-r-lg border-l border-l-primary-foreground/20 transition-colors disabled:pointer-events-none disabled:opacity-50"
           >
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {sourceOptions.map((option) => {

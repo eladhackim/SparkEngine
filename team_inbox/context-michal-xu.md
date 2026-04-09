@@ -1,8 +1,8 @@
 # Worker Michal-Xu — Session Context
-LAST UPDATED: 2026-04-08T18:45:00+03:00
+LAST UPDATED: 2026-04-09T00:31:00+03:00
 
 ## Current Task
-COMPLETED: Frontend Architecture Specification v2.0 - Pipeline-First MVP Update
+COMPLETED: Frontend Architecture Specification v2.1 - Source-Specific Generation Buttons
 
 ## Branch / Worktree
 BRANCH: N/A (not a git repository)
@@ -10,24 +10,23 @@ WORKTREE: main repo
 LAST COMMIT: N/A
 
 ## Progress
-- [x] Read backend pipeline spec for context
-- [x] Add generation components to directory structure (Section 2)
-- [x] Update component hierarchy (Section 4)
-- [x] Add generation query keys and hooks (Section 5)
-- [x] Update data flow diagrams (Section 7)
-- [x] Add new Generation UI Patterns section (Section 11)
+- [x] Update GenerateIdeasButton to GenerateButtonGroup with dropdown
+- [x] Update useGenerateIdeas hook for source-specific generation (SourcesInput type)
+- [x] Update GenerationProgress to show source being processed
+- [x] Add source-icons.tsx with sourceConfig
+- [x] Add appstore as 4th data source
+- [x] Update Document History to v2.1
 - [x] Report completion to manager
 
 ## Key Decisions Made
-- Polling over WebSockets (2s interval, simpler for short-lived operation)
-- Optimistic isGenerating status on mutation start
-- Source as enumerated type (ai-generated | trend-suggested | manual)
-- NewBadge dismissal via viewedAt timestamp
-- Generation history in Settings drawer
-- 10-minute client-side polling timeout
+- Button group pattern with primary action + dropdown for power users
+- sourceConfig centralizes icon, label, shortLabel, color for each source
+- SourcesInput type: 'all' | DataSource[] for flexible API
+- Source combinations: X+Polymarket, News+AppStore as preset combos
+- Progress indicator shows currentSource during collection/analysis
 
 ## Files Modified
-- docs/technical/frontend-architecture.md — Updated v1.0 → v2.0 with pipeline-first MVP support
+- docs/technical/frontend-architecture.md — Updated v2.0 → v2.1 with source-specific generation
 
 ## Session Summary
 
@@ -40,9 +39,18 @@ Updated spec to include:
 - 4 new generation hooks with polling
 - Updated component hierarchies for Dashboard and Detail panels
 - Generation data flow diagrams
-- New Section 11: Generation UI Patterns (polling, progress states, error handling, source filtering, new idea highlighting, history)
+- New Section 11: Generation UI Patterns
+
+### Task 3: Source-Specific Generation Buttons (v2.1)
+Updated spec to include:
+- GenerateButtonGroup with dropdown for source-specific generation
+- source-icons.tsx with centralized source configuration
+- Updated useGenerateIdeas hook with SourcesInput type
+- Enhanced GenerationProgress with source-specific messaging
+- Added appstore as 4th data source
+- Updated component hierarchies
 
 ## Notes for Next Session
-- Both tasks completed successfully
-- Spec now covers full pipeline-first MVP requirements
+- All three tasks completed successfully
+- Spec now at v2.1 with full source-specific generation support
 - Ready for next task
