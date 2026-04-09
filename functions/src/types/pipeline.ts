@@ -260,6 +260,32 @@ export interface TechnicalOverview {
   technicalRisks: string[];
 }
 
+/**
+ * Source metadata for displaying analysis details in UI
+ */
+export interface SourceMetadata {
+  // Apps that were analyzed to generate this idea
+  appsAnalyzed: Array<{
+    name: string;
+    platform: 'ios' | 'android';
+    rating: number;
+    reviewCount: number;
+    downloads: string;
+    category: string;
+  }>;
+  // Sample user quotes from reviews that informed this idea
+  sampleReviews: Array<{
+    appName: string;
+    quote: string;
+    rating: number;
+  }>;
+  // Categories that were analyzed
+  categoriesAnalyzed: string[];
+  // Total metrics
+  totalReviewsAnalyzed: number;
+  analysisDate: string;
+}
+
 export interface AINativeIdea extends ScoredIdea {
   // Override source type
   source: 'friction-derived';
@@ -280,6 +306,9 @@ export interface AINativeIdea extends ScoredIdea {
 
   // Technical implementation details
   technicalOverview: TechnicalOverview;
+
+  // Source metadata for UI display
+  sourceMetadata?: SourceMetadata;
 }
 
 // ============================================

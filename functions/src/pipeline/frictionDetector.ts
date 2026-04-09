@@ -15,8 +15,8 @@ import { getStoredReviews, clearStoredReviews } from './sources/appstore.js';
 // CONFIGURATION
 // ============================================
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
-const BATCH_SIZE = 50; // Reviews per batch
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const BATCH_SIZE = 40; // Reviews per batch
 
 // ============================================
 // TYPES

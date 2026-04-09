@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, X, Store, Star, MessageSquareQuote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -255,6 +255,78 @@ export function IdeaDetailSheet() {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Source Metadata - App Store Analysis Details */}
+              {idea.sourceMetadata && (
+                <div className="space-y-6 p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-900">
+                  <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                    <Store className="h-5 w-5" />
+                    <h3 className="text-lg font-semibold">App Store Analysis</h3>
+                  </div>
+
+                  {/* Apps Analyzed */}
+                  {idea.sourceMetadata.appsAnalyzed.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                        Apps Analyzed ({idea.sourceMetadata.appsAnalyzed.length})
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {idea.sourceMetadata.appsAnalyzed.slice(0, 6).map((app, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded-md text-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">
+                                {app.platform === 'ios' ? '🍎' : '🤖'}
+                              </span>
+                              <span className="truncate font-medium">{app.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Star className="h-3 w-3 text-yellow-500" />
+                              <span className="text-muted-foreground">{app.rating.toFixed(1)}</span>
+                              <span className="text-xs text-muted-foreground">({app.downloads})</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {idea.sourceMetadata.appsAnalyzed.length > 6 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{idea.sourceMetadata.appsAnalyzed.length - 6} more apps
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* User Feedback Quotes */}
+                  {idea.sourceMetadata.sampleReviews.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <MessageSquareQuote className="h-4 w-4 text-purple-600" />
+                        <h4 className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                          User Feedback
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {idea.sourceMetadata.sampleReviews.slice(0, 4).map((review, i) => (
+                          <div key={i} className="p-3 bg-white dark:bg-gray-900 rounded-md text-sm">
+                            <p className="text-muted-foreground italic leading-relaxed">
+                              &ldquo;{review.quote}&rdquo;
+                            </p>
+                            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                              — {review.appName} user
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Analysis Metrics */}
+                  <div className="flex flex-wrap gap-4 pt-2 text-xs text-muted-foreground border-t border-purple-200 dark:border-purple-800">
+                    <span>📊 {idea.sourceMetadata.totalReviewsAnalyzed.toLocaleString()} reviews analyzed</span>
+                    <span>📁 Categories: {idea.sourceMetadata.categoriesAnalyzed.join(', ')}</span>
+                    <span>📅 {new Date(idea.sourceMetadata.analysisDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
               )}
 
               {idea.tags.length > 0 && (

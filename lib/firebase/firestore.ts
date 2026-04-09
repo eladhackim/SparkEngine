@@ -129,6 +129,7 @@ export async function createIdea(userId: string, input: CreateIdeaInput): Promis
     status: input.status || 'new',
     tags: input.tags || [],
     source: 'manual' as const,
+    dataSource: null,  // Manual ideas don't have a data source
     compositeScore,
     tier,
     scoringMethod: 'manual' as const,

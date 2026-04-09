@@ -1,3 +1,5 @@
+import type { DataSource } from './generation';
+
 // ============================================
 // ENUMS & CONSTANTS
 // ============================================
@@ -20,6 +22,29 @@ export interface BusinessPlan {
 }
 
 // ============================================
+// SOURCE METADATA (for App Store analysis)
+// ============================================
+
+export interface SourceMetadata {
+  appsAnalyzed: Array<{
+    name: string;
+    platform: 'ios' | 'android';
+    rating: number;
+    reviewCount: number;
+    downloads: string;
+    category: string;
+  }>;
+  sampleReviews: Array<{
+    appName: string;
+    quote: string;
+    rating: number;
+  }>;
+  categoriesAnalyzed: string[];
+  totalReviewsAnalyzed: number;
+  analysisDate: string;
+}
+
+// ============================================
 // IDEA ENTITY
 // ============================================
 
@@ -32,6 +57,7 @@ export interface Idea {
   category: IdeaCategory;
   status: IdeaStatus;
   source: IdeaSource;
+  dataSource: DataSource | null;  // Which data source was used (x, polymarket, googlenews, appstore)
   tags: string[];
 
   // Core scoring (required)
@@ -72,6 +98,9 @@ export interface Idea {
 
   // Freshness tracking
   viewedAt: Date | null;
+
+  // Source metadata (apps analyzed, reviews, etc.) - for App Store ideas
+  sourceMetadata?: SourceMetadata | null;
 }
 
 // ============================================

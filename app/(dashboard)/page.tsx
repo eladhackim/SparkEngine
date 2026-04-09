@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/providers/auth-provider';
 import { IdeaGrid } from '@/components/ideas/idea-grid';
@@ -13,14 +13,51 @@ import { ideaKeys } from '@/lib/queries/query-keys';
 import { fetchStatusCounts } from '@/lib/firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import type { GenerationStage } from '@/lib/types/generation';
 
 const GENERATE_FUNCTION_URL = 'https://generateideashttp-b7kq6socsa-uc.a.run.app';
+
+// Stage timing for simulated progress (in ms)
+const STAGE_TIMINGS: Record<GenerationStage, number> = {
+  collecting: 3000,
+  analyzing: 5000,
+  generating: 8000,
+  scoring: 4000,
+  saving: 2000,
+};
+
+const STAGES: GenerationStage[] = ['collecting', 'analyzing', 'generating', 'scoring', 'saving'];
 
 function DashboardContent() {
   const { user } = useAuth();
   const { filters, setStatus, setSort } = useFilters();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentStage, setCurrentStage] = useState<GenerationStage | undefined>();
+  const [ideasGenerated, setIdeasGenerated] = useState<number | undefined>();
+  const stageTimersRef = useRef<NodeJS.Timeout[]>([]);
   const queryClient = useQueryClient();
+
+  // Start simulated stage progression
+  const startStageProgression = useCallback(() => {
+    // Clear any existing timers
+    stageTimersRef.current.forEach(clearTimeout);
+    stageTimersRef.current = [];
+
+    let cumulativeTime = 0;
+    STAGES.forEach((stage, index) => {
+      const timer = setTimeout(() => {
+        setCurrentStage(stage);
+      }, cumulativeTime);
+      stageTimersRef.current.push(timer);
+      cumulativeTime += STAGE_TIMINGS[stage];
+    });
+  }, []);
+
+  // Stop stage progression
+  const stopStageProgression = useCallback(() => {
+    stageTimersRef.current.forEach(clearTimeout);
+    stageTimersRef.current = [];
+  }, []);
 
   // Get status counts for tabs
   const { data: counts } = useQuery({
@@ -46,6 +83,10 @@ function DashboardContent() {
     }
 
     setIsGenerating(true);
+    setCurrentStage('collecting');
+    setIdeasGenerated(undefined);
+    startStageProgression();
+
     try {
       // Get Firebase ID token for authentication
       const idToken = await user.getIdToken();
@@ -75,13 +116,20 @@ function DashboardContent() {
       }
 
       const result = await response.json();
-      toast.success(`Generated ${result.data?.ideasSaved || 0} new ideas!`);
+      const savedCount = result.data?.ideasSaved || 0;
+
+      stopStageProgression();
+      setCurrentStage(undefined);
+      setIdeasGenerated(savedCount);
+      toast.success(`Generated ${savedCount} new ideas!`);
 
       // Refresh the ideas list
       queryClient.invalidateQueries({ queryKey: ideaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: ideaKeys.counts() });
     } catch (error) {
       console.error('Generation error:', error);
+      stopStageProgression();
+      setCurrentStage(undefined);
       toast.error(error instanceof Error ? error.message : 'Failed to generate ideas. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -102,7 +150,11 @@ function DashboardContent() {
       </div>
 
       {/* Generation Progress (shows when generating) */}
-      <GenerationProgress isGenerating={isGenerating} />
+      <GenerationProgress
+        isGenerating={isGenerating}
+        currentStage={currentStage}
+        ideasGenerated={ideasGenerated}
+      />
 
       {/* Filters Row */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

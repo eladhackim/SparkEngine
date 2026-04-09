@@ -16,13 +16,17 @@ import { ScoredIdea, GenerationRunDocument, GenerationSource, GenerationTrigger,
 export async function saveIdeas(
   userId: string,
   ideas: ScoredIdea[],
-  runId: string
+  runId: string,
+  sources: GenerationSource[] = []
 ): Promise<number> {
   const db = admin.firestore();
   const batch = db.batch();
   let savedCount = 0;
 
   console.log(`[Persistence] Saving ${ideas.length} ideas for user ${userId}...`);
+
+  // Determine primary data source (first source if single-source generation, null if multiple)
+  const primaryDataSource = sources.length === 1 ? sources[0] : (sources.length > 0 ? sources[0] : null);
 
   for (const idea of ideas) {
     const ideaRef = db.collection('users').doc(userId).collection('ideas').doc();
@@ -35,6 +39,7 @@ export async function saveIdeas(
       tags: idea.tags || [],
       status: 'new',
       source: 'ai-generated',
+      dataSource: primaryDataSource,  // Track which data source was used
 
       // Scores
       businessPotential: idea.businessPotential,
@@ -107,6 +112,7 @@ export async function saveAINativeIdeas(
       tags: idea.tags || [],
       status: 'new',
       source: 'friction-derived',
+      dataSource: 'appstore',  // App Store niche discovery source
 
       // Display label for UI ribbon
       displayLabel: idea.displayLabel || 'App Store Insight',
@@ -140,6 +146,9 @@ export async function saveAINativeIdeas(
       aiApproach: idea.aiApproach || null,
       usp: idea.usp || null,
       technicalOverview: idea.technicalOverview || null,
+
+      // Source metadata for UI display (apps analyzed, reviews, etc.)
+      sourceMetadata: idea.sourceMetadata || null,
 
       // Metadata
       sourceSignals: idea.sourceSignals || [],

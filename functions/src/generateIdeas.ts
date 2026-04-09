@@ -31,7 +31,7 @@ export const generateIdeasHttp = onRequest(
   {
     secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
-    timeoutSeconds: 540, // 9 minutes max
+    timeoutSeconds: 900, // 15 minutes for App Store analysis
     region: 'us-central1',
     invoker: 'public', // Allow unauthenticated HTTP access (we verify Firebase Auth in code)
   },

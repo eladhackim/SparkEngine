@@ -159,7 +159,7 @@ export async function runGenerationPipeline(
     console.log(`[Pipeline ${runId}] Stage 5: Saving to Firestore...`);
     const savingStart = Date.now();
 
-    const savedCount = await saveIdeas(config.userId, scoredIdeas, runId);
+    const savedCount = await saveIdeas(config.userId, scoredIdeas, runId, config.sources);
 
     stages.saving = {
       duration: Date.now() - savingStart,

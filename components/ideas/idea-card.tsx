@@ -35,8 +35,10 @@ export function IdeaCard({ idea, onStatusChange }: IdeaCardProps) {
   );
   const isRecent = daysSinceCreated <= 1;
 
-  // Show source badge for non-manual sources
-  const showSourceBadge = idea.source !== 'manual';
+  // Determine which source to display
+  // Prefer dataSource (actual data source) over source (how it was created)
+  const displaySource = idea.dataSource || (idea.source !== 'manual' ? idea.source : null);
+  const showSourceBadge = displaySource !== null;
 
   return (
     <Card
@@ -58,8 +60,8 @@ export function IdeaCard({ idea, onStatusChange }: IdeaCardProps) {
               )}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              {showSourceBadge && (
-                <SourceBadge source={idea.source} size="sm" />
+              {showSourceBadge && displaySource && (
+                <SourceBadge source={displaySource} size="sm" />
               )}
               {isRecent && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
