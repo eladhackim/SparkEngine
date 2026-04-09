@@ -51,7 +51,7 @@ if (!admin.apps.length) {
 const GROK_API_KEY = (0, params_1.defineSecret)('GROK_API_KEY');
 const GEMINI_API_KEY = (0, params_1.defineSecret)('GEMINI_API_KEY');
 const NEWS_API_KEY = (0, params_1.defineSecret)('NEWS_API_KEY');
-const APPFOLLOW_API_KEY = (0, params_1.defineSecret)('APPFOLLOW_API_KEY');
+// Note: APPFOLLOW_API_KEY removed - using free scrapers instead
 /**
  * HTTP Trigger - Manual generation
  * POST /generateIdeas
@@ -59,7 +59,7 @@ const APPFOLLOW_API_KEY = (0, params_1.defineSecret)('APPFOLLOW_API_KEY');
  * Headers: Authorization: Bearer <Firebase ID Token>
  */
 exports.generateIdeasHttp = (0, https_1.onRequest)({
-    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY, APPFOLLOW_API_KEY],
+    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540, // 9 minutes max
     region: 'us-central1',
@@ -156,7 +156,7 @@ exports.generateIdeasHttp = (0, https_1.onRequest)({
 exports.generateIdeasScheduled = (0, scheduler_1.onSchedule)({
     schedule: '0 6 * * *', // Daily at 6 AM UTC
     timeZone: 'UTC',
-    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY, APPFOLLOW_API_KEY],
+    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540,
     region: 'us-central1',
@@ -220,7 +220,7 @@ exports.generateIdeasScheduled = (0, scheduler_1.onSchedule)({
 exports.generateNicheIdeasScheduled = (0, scheduler_1.onSchedule)({
     schedule: '0 2 * * 0', // Every Sunday at 2 AM UTC
     timeZone: 'UTC',
-    secrets: [GEMINI_API_KEY, APPFOLLOW_API_KEY],
+    secrets: [GEMINI_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540,
     region: 'us-central1',

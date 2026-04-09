@@ -19,7 +19,7 @@ if (!admin.apps.length) {
 const GROK_API_KEY = defineSecret('GROK_API_KEY');
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const NEWS_API_KEY = defineSecret('NEWS_API_KEY');
-const APPFOLLOW_API_KEY = defineSecret('APPFOLLOW_API_KEY');
+// Note: APPFOLLOW_API_KEY removed - using free scrapers instead
 
 /**
  * HTTP Trigger - Manual generation
@@ -29,7 +29,7 @@ const APPFOLLOW_API_KEY = defineSecret('APPFOLLOW_API_KEY');
  */
 export const generateIdeasHttp = onRequest(
   {
-    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY, APPFOLLOW_API_KEY],
+    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540, // 9 minutes max
     region: 'us-central1',
@@ -138,7 +138,7 @@ export const generateIdeasScheduled = onSchedule(
   {
     schedule: '0 6 * * *', // Daily at 6 AM UTC
     timeZone: 'UTC',
-    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY, APPFOLLOW_API_KEY],
+    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540,
     region: 'us-central1',
@@ -214,7 +214,7 @@ export const generateNicheIdeasScheduled = onSchedule(
   {
     schedule: '0 2 * * 0', // Every Sunday at 2 AM UTC
     timeZone: 'UTC',
-    secrets: [GEMINI_API_KEY, APPFOLLOW_API_KEY],
+    secrets: [GEMINI_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540,
     region: 'us-central1',

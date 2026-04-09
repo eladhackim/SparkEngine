@@ -1,9 +1,10 @@
 /**
- * App Store Data Source via AppFollow API
- * Fetches top apps and reviews for friction analysis
+ * App Store Data Source using Free Scrapers
+ * Fetches top apps and reviews for friction analysis from both stores
+ * Uses: google-play-scraper and app-store-scraper (no API keys required)
  */
 import { AppStoreData } from '../../types/pipeline.js';
-interface AppFollowReview {
+interface ScrapedReview {
     id: string;
     author: string;
     rating: number;
@@ -24,7 +25,7 @@ export declare function fetchAppStoreData(categories?: string[]): Promise<AppSto
 export declare function getStoredReviews(): {
     appId: string;
     appName: string;
-    reviews: AppFollowReview[];
+    reviews: ScrapedReview[];
 }[];
 /**
  * Clear stored reviews after processing

@@ -1,17 +1,23 @@
 "use strict";
 /**
- * App Store Data Source via AppFollow API
- * Fetches top apps and reviews for friction analysis
+ * App Store Data Source using Free Scrapers
+ * Fetches top apps and reviews for friction analysis from both stores
+ * Uses: google-play-scraper and app-store-scraper (no API keys required)
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.fetchAppStoreData = fetchAppStoreData;
 exports.getStoredReviews = getStoredReviews;
 exports.clearStoredReviews = clearStoredReviews;
+const google_play_scraper_1 = __importDefault(require("google-play-scraper"));
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const appStore = require('app-store-scraper');
 // ============================================
 // CONFIGURATION
 // ============================================
-const APPFOLLOW_BASE_URL = 'https://api.appfollow.io/v2';
-// Categories to analyze (from spec)
+// Categories to analyze (from spec) - mapped to scraper constants
 const DEFAULT_CATEGORIES = [
     'health-fitness',
     'productivity',
@@ -20,70 +26,42 @@ const DEFAULT_CATEGORIES = [
 // Configuration constants
 const CONFIG = {
     maxAppsPerCategory: 10,
-    maxReviewsPerApp: 200,
-    minDownloads: 100000,
-    starRange: [2, 3, 4], // Most constructive feedback
-    lookbackDays: 90,
+    maxReviewsPerApp: 100,
+    requestDelay: 500, // ms between requests to avoid rate limiting
+};
+// Category mapping for Google Play (using string values that match the enum)
+const GPLAY_CATEGORY_MAP = {
+    'health-fitness': 'HEALTH_AND_FITNESS',
+    'productivity': 'PRODUCTIVITY',
+    'finance': 'FINANCE',
+    'education': 'EDUCATION',
+    'lifestyle': 'LIFESTYLE',
+    'business': 'BUSINESS',
+    'food-drink': 'FOOD_AND_DRINK',
+    'games-casual': 'GAME_CASUAL',
+    'games-puzzle': 'GAME_PUZZLE',
+    'games-strategy': 'GAME_STRATEGY',
+};
+// Category mapping for App Store (numeric IDs)
+const APPSTORE_CATEGORY_MAP = {
+    'health-fitness': 6013,
+    'productivity': 6007,
+    'finance': 6015,
+    'education': 6017,
+    'lifestyle': 6012,
+    'business': 6000,
+    'food-drink': 6023,
+    'games-casual': 7003,
+    'games-puzzle': 7012,
+    'games-strategy': 7017,
 };
 // ============================================
-// API FUNCTIONS
+// HELPER FUNCTIONS
 // ============================================
 /**
- * Fetches top apps in a category from AppFollow
+ * Delay helper for rate limiting
  */
-async function fetchTopApps(category, platform, apiKey) {
-    const url = `${APPFOLLOW_BASE_URL}/apps/top?category=${category}&platform=${platform}&country=us&limit=${CONFIG.maxAppsPerCategory}`;
-    const response = await fetch(url, {
-        headers: {
-            'X-AppFollow-API-Token': apiKey,
-            'Content-Type': 'application/json',
-        },
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AppFollow API error: ${response.status} - ${errorText}`);
-    }
-    const data = await response.json();
-    return data.apps || [];
-}
-/**
- * Fetches reviews for a specific app
- */
-async function fetchAppReviews(appId, platform, apiKey) {
-    const reviews = [];
-    // Fetch reviews for each star rating in range
-    for (const stars of CONFIG.starRange) {
-        const url = `${APPFOLLOW_BASE_URL}/reviews?app_id=${appId}&platform=${platform}&rating=${stars}&sort=date&limit=${Math.floor(CONFIG.maxReviewsPerApp / CONFIG.starRange.length)}`;
-        const response = await fetch(url, {
-            headers: {
-                'X-AppFollow-API-Token': apiKey,
-                'Content-Type': 'application/json',
-            },
-        });
-        if (response.ok) {
-            const data = await response.json();
-            reviews.push(...(data.reviews || []));
-        }
-    }
-    return reviews;
-}
-/**
- * Fetches ratings distribution for an app
- */
-async function fetchAppRatings(appId, platform, apiKey) {
-    const url = `${APPFOLLOW_BASE_URL}/ratings?app_id=${appId}&platform=${platform}`;
-    const response = await fetch(url, {
-        headers: {
-            'X-AppFollow-API-Token': apiKey,
-            'Content-Type': 'application/json',
-        },
-    });
-    if (!response.ok) {
-        return null;
-    }
-    const data = await response.json();
-    return data.ratings || null;
-}
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 /**
  * Calculates negative review rate from ratings distribution
  */
@@ -94,20 +72,182 @@ function calculateNegativeReviewRate(ratings) {
     const negative = (ratings.distribution['1'] || 0) + (ratings.distribution['2'] || 0);
     return negative / ratings.total;
 }
+// ============================================
+// GOOGLE PLAY SCRAPER FUNCTIONS
+// ============================================
 /**
- * Transforms AppFollow app to our CompetitorApp type
+ * Fetches top apps from Google Play Store
  */
-function transformToCompetitorApp(app, platform, negativeRate) {
-    return {
-        name: app.title,
-        appId: app.app_id,
-        platform,
-        category: app.category,
-        downloads: 'Unknown', // AppFollow basic tier doesn't provide this
-        rating: app.rating,
-        reviewCount: app.reviews_count,
-        negativeReviewRate: negativeRate,
-    };
+async function fetchGooglePlayApps(category) {
+    const gplayCategory = GPLAY_CATEGORY_MAP[category];
+    if (!gplayCategory) {
+        console.log(`[AppStore] No Google Play mapping for category: ${category}`);
+        return [];
+    }
+    try {
+        const apps = await google_play_scraper_1.default.list({
+            category: gplayCategory,
+            collection: 'TOP_FREE',
+            num: CONFIG.maxAppsPerCategory,
+            fullDetail: true,
+        });
+        return apps.map((app) => ({
+            name: app.title,
+            appId: app.appId,
+            platform: 'android',
+            category: app.genre || category,
+            downloads: app.installs || 'Unknown',
+            rating: app.score || 0,
+            reviewCount: app.reviews || 0,
+            negativeReviewRate: app.histogram
+                ? ((app.histogram['1'] || 0) + (app.histogram['2'] || 0)) / (app.ratings || 1)
+                : 0,
+        }));
+    }
+    catch (error) {
+        console.error(`[AppStore] Google Play fetch error for ${category}:`, error);
+        return [];
+    }
+}
+/**
+ * Fetches reviews from Google Play Store
+ */
+async function fetchGooglePlayReviews(appId) {
+    try {
+        // Fetch reviews sorted by rating (to get critical reviews)
+        const result = await google_play_scraper_1.default.reviews({
+            appId,
+            sort: 3, // 3 = RATING
+            num: CONFIG.maxReviewsPerApp,
+        });
+        return result.data.map((review) => ({
+            id: review.id,
+            author: review.userName,
+            rating: review.score,
+            title: review.title || undefined,
+            content: review.text,
+            date: review.date,
+            version: review.version || undefined,
+            helpful_count: review.thumbsUp || undefined,
+        }));
+    }
+    catch (error) {
+        console.error(`[AppStore] Google Play reviews error for ${appId}:`, error);
+        return [];
+    }
+}
+/**
+ * Fetches app details with ratings from Google Play
+ */
+async function fetchGooglePlayRatings(appId) {
+    try {
+        const app = await google_play_scraper_1.default.app({ appId });
+        if (app.histogram) {
+            return {
+                average: app.score || 0,
+                total: app.ratings || 0,
+                distribution: {
+                    '1': app.histogram['1'] || 0,
+                    '2': app.histogram['2'] || 0,
+                    '3': app.histogram['3'] || 0,
+                    '4': app.histogram['4'] || 0,
+                    '5': app.histogram['5'] || 0,
+                },
+            };
+        }
+        return null;
+    }
+    catch (error) {
+        console.error(`[AppStore] Google Play ratings error for ${appId}:`, error);
+        return null;
+    }
+}
+/**
+ * Fetches top apps from Apple App Store
+ */
+async function fetchAppStoreApps(category) {
+    const appStoreCategory = APPSTORE_CATEGORY_MAP[category];
+    if (!appStoreCategory) {
+        console.log(`[AppStore] No App Store mapping for category: ${category}`);
+        return [];
+    }
+    try {
+        const apps = await appStore.list({
+            category: appStoreCategory,
+            collection: appStore.collection.TOP_FREE_IOS,
+            num: CONFIG.maxAppsPerCategory,
+            country: 'us',
+        });
+        return apps.map((app) => ({
+            name: app.title,
+            appId: app.appId || String(app.id),
+            platform: 'ios',
+            category: app.primaryGenre || category,
+            downloads: 'Unknown', // App Store doesn't provide download counts
+            rating: app.score || 0,
+            reviewCount: app.reviews || 0,
+            negativeReviewRate: 0, // Will be calculated separately if needed
+        }));
+    }
+    catch (error) {
+        console.error(`[AppStore] App Store fetch error for ${category}:`, error);
+        return [];
+    }
+}
+/**
+ * Fetches reviews from Apple App Store
+ */
+async function fetchAppStoreReviews(appId) {
+    try {
+        const reviews = await appStore.reviews({
+            id: typeof appId === 'string' ? parseInt(appId, 10) : appId,
+            sort: appStore.sort.RECENT,
+            page: 1,
+            country: 'us',
+        });
+        return reviews.map((review) => ({
+            id: review.id || String(Math.random()),
+            author: review.userName,
+            rating: review.score,
+            title: review.title || undefined,
+            content: review.text,
+            date: review.date || new Date().toISOString(),
+            version: review.version || undefined,
+        }));
+    }
+    catch (error) {
+        console.error(`[AppStore] App Store reviews error for ${appId}:`, error);
+        return [];
+    }
+}
+/**
+ * Fetches ratings from Apple App Store
+ */
+async function fetchAppStoreRatings(appId) {
+    try {
+        const ratings = await appStore.ratings({
+            id: typeof appId === 'string' ? parseInt(appId, 10) : appId,
+            country: 'us',
+        });
+        if (ratings && ratings.histogram) {
+            return {
+                average: ratings.ratings || 0,
+                total: Object.values(ratings.histogram).reduce((a, b) => a + b, 0),
+                distribution: {
+                    '1': ratings.histogram['1'] || 0,
+                    '2': ratings.histogram['2'] || 0,
+                    '3': ratings.histogram['3'] || 0,
+                    '4': ratings.histogram['4'] || 0,
+                    '5': ratings.histogram['5'] || 0,
+                },
+            };
+        }
+        return null;
+    }
+    catch (error) {
+        console.error(`[AppStore] App Store ratings error for ${appId}:`, error);
+        return null;
+    }
 }
 // ============================================
 // MAIN FETCH FUNCTION
@@ -117,11 +257,7 @@ function transformToCompetitorApp(app, platform, negativeRate) {
  * @returns Promise<AppStoreData> - Structured app store data
  */
 async function fetchAppStoreData(categories = DEFAULT_CATEGORIES) {
-    const apiKey = process.env.APPFOLLOW_API_KEY;
-    if (!apiKey) {
-        throw new Error('APPFOLLOW_API_KEY not configured');
-    }
-    console.log('[AppStore] Fetching app store data via AppFollow API...');
+    console.log('[AppStore] Fetching app store data via free scrapers...');
     console.log(`[AppStore] Categories: ${categories.join(', ')}`);
     const niches = [];
     const allApps = [];
@@ -132,50 +268,64 @@ async function fetchAppStoreData(categories = DEFAULT_CATEGORIES) {
     for (const category of categories) {
         console.log(`[AppStore] Processing category: ${category}`);
         try {
-            // Fetch top apps for both platforms
+            // Fetch top apps from both platforms in parallel
             const [iosApps, androidApps] = await Promise.all([
-                fetchTopApps(category, 'ios', apiKey).catch(() => []),
-                fetchTopApps(category, 'android', apiKey).catch(() => []),
+                fetchAppStoreApps(category),
+                fetchGooglePlayApps(category),
             ]);
             // Combine and deduplicate by name (prefer iOS data when available)
             const appMap = new Map();
             for (const app of iosApps) {
-                appMap.set(app.title.toLowerCase(), { app, platform: 'ios' });
+                appMap.set(app.name.toLowerCase(), app);
             }
             for (const app of androidApps) {
-                const key = app.title.toLowerCase();
+                const key = app.name.toLowerCase();
                 if (!appMap.has(key)) {
-                    appMap.set(key, { app, platform: 'android' });
+                    appMap.set(key, app);
                 }
             }
-            const categoryApps = [];
+            const categoryApps = Array.from(appMap.values()).slice(0, CONFIG.maxAppsPerCategory);
             const competitorWeaknesses = [];
             let totalRating = 0;
             let totalNegativeRate = 0;
             // Process each app
-            for (const { app, platform } of Array.from(appMap.values()).slice(0, CONFIG.maxAppsPerCategory)) {
+            for (const app of categoryApps) {
                 totalAppsAnalyzed++;
+                // Add rate limiting delay
+                await delay(CONFIG.requestDelay);
                 // Fetch ratings for negative rate calculation
-                const ratings = await fetchAppRatings(app.app_id, platform, apiKey);
+                let ratings = null;
+                if (app.platform === 'android') {
+                    ratings = await fetchGooglePlayRatings(app.appId);
+                }
+                else {
+                    ratings = await fetchAppStoreRatings(app.appId);
+                }
                 const negativeRate = calculateNegativeReviewRate(ratings);
-                const competitorApp = transformToCompetitorApp(app, platform, negativeRate);
-                categoryApps.push(competitorApp);
-                allApps.push(competitorApp);
+                app.negativeReviewRate = negativeRate;
+                allApps.push(app);
                 totalRating += app.rating;
                 totalNegativeRate += negativeRate;
                 // Fetch reviews for friction analysis
-                const reviews = await fetchAppReviews(app.app_id, platform, apiKey);
+                await delay(CONFIG.requestDelay);
+                let reviews = [];
+                if (app.platform === 'android') {
+                    reviews = await fetchGooglePlayReviews(app.appId);
+                }
+                else {
+                    reviews = await fetchAppStoreReviews(app.appId);
+                }
                 if (reviews.length > 0) {
                     allReviews.push({
-                        appId: app.app_id,
-                        appName: app.title,
+                        appId: app.appId,
+                        appName: app.name,
                         reviews,
                     });
                     totalReviewsProcessed += reviews.length;
                 }
                 // Add to weaknesses if high negative rate
                 if (negativeRate > 0.25) {
-                    competitorWeaknesses.push(`${app.title} has ${Math.round(negativeRate * 100)}% negative reviews`);
+                    competitorWeaknesses.push(`${app.name} has ${Math.round(negativeRate * 100)}% negative reviews`);
                 }
             }
             // Create niche profile
