@@ -1,4 +1,4 @@
-export type DataSource = 'x' | 'polymarket' | 'googlenews';
+export type DataSource = 'x' | 'polymarket' | 'googlenews' | 'appstore';
 export type GenerationStage = 'collecting' | 'analyzing' | 'generating' | 'scoring' | 'saving';
 export type GenerationTrigger = 'manual' | 'scheduled';
 
