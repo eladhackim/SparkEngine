@@ -4,4 +4,4 @@
  */
 
 // Export idea generation functions
-export { generateIdeasHttp, generateIdeasScheduled } from './generateIdeas.js';
+export { generateIdeasHttp, generateIdeasScheduled, generateNicheIdeasScheduled } from './generateIdeas.js';
