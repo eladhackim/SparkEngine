@@ -19,6 +19,7 @@ if (!admin.apps.length) {
 const GROK_API_KEY = defineSecret('GROK_API_KEY');
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const NEWS_API_KEY = defineSecret('NEWS_API_KEY');
+const APPFOLLOW_API_KEY = defineSecret('APPFOLLOW_API_KEY');
 
 /**
  * HTTP Trigger - Manual generation
@@ -28,7 +29,7 @@ const NEWS_API_KEY = defineSecret('NEWS_API_KEY');
  */
 export const generateIdeasHttp = onRequest(
   {
-    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
+    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY, APPFOLLOW_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540, // 9 minutes max
     region: 'us-central1',
@@ -80,16 +81,17 @@ export const generateIdeasHttp = onRequest(
 
     // Parse request body
     const body = req.body || {};
-    const validSources: GenerationSource[] = ['x', 'polymarket', 'googlenews'];
+    const validSources: GenerationSource[] = ['x', 'polymarket', 'googlenews', 'appstore'];
+    const defaultSources: GenerationSource[] = ['x', 'polymarket', 'googlenews']; // appstore is opt-in
     const requestedSources = Array.isArray(body.sources)
       ? body.sources.filter((s: string) => validSources.includes(s as GenerationSource)) as GenerationSource[]
-      : validSources;
+      : defaultSources;
 
     const ideasPerRun = Math.min(Math.max(body.ideasPerRun || 10, 1), 25); // 1-25 range
 
     const config: GenerationConfig = {
       userId,
-      sources: requestedSources.length > 0 ? requestedSources : validSources,
+      sources: requestedSources.length > 0 ? requestedSources : defaultSources,
       ideasPerRun,
       categories: Array.isArray(body.categories) ? body.categories : undefined,
     };
@@ -136,7 +138,7 @@ export const generateIdeasScheduled = onSchedule(
   {
     schedule: '0 6 * * *', // Daily at 6 AM UTC
     timeZone: 'UTC',
-    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY],
+    secrets: [GROK_API_KEY, GEMINI_API_KEY, NEWS_API_KEY, APPFOLLOW_API_KEY],
     memory: '1GiB',
     timeoutSeconds: 540,
     region: 'us-central1',
@@ -161,14 +163,15 @@ export const generateIdeasScheduled = onSchedule(
 
       console.log(`[Scheduled Trigger] Processing user: ${userId}`);
 
-      const validSources: GenerationSource[] = ['x', 'polymarket', 'googlenews'];
+      const validSources: GenerationSource[] = ['x', 'polymarket', 'googlenews', 'appstore'];
+      const defaultSources: GenerationSource[] = ['x', 'polymarket', 'googlenews'];
       const userSources = Array.isArray(userData.generationSources)
         ? userData.generationSources.filter((s: string) => validSources.includes(s as GenerationSource)) as GenerationSource[]
-        : validSources;
+        : defaultSources;
 
       const config: GenerationConfig = {
         userId,
-        sources: userSources.length > 0 ? userSources : validSources,
+        sources: userSources.length > 0 ? userSources : defaultSources,
         ideasPerRun: Math.min(Math.max(userData.ideasPerRun || 10, 1), 25),
         categories: userData.preferredCategories || undefined,
       };
@@ -199,5 +202,87 @@ export const generateIdeasScheduled = onSchedule(
     const successful = results.filter(r => r.success).length;
     const totalIdeas = results.reduce((sum, r) => sum + r.ideasSaved, 0);
     console.log(`[Scheduled Trigger] Complete: ${successful}/${results.length} users successful, ${totalIdeas} total ideas generated`);
+  }
+);
+
+/**
+ * Scheduled Trigger - Weekly App Store Niche Discovery
+ * Runs at 2:00 AM UTC every Sunday for users with App Store source enabled
+ * This runs the specialized niche discovery pipeline independently from daily runs
+ */
+export const generateNicheIdeasScheduled = onSchedule(
+  {
+    schedule: '0 2 * * 0', // Every Sunday at 2 AM UTC
+    timeZone: 'UTC',
+    secrets: [GEMINI_API_KEY, APPFOLLOW_API_KEY],
+    memory: '1GiB',
+    timeoutSeconds: 540,
+    region: 'us-central1',
+    retryCount: 3,
+  },
+  async () => {
+    console.log('[Niche Discovery] Starting weekly App Store niche discovery');
+
+    // Get all users who have App Store source enabled
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('appStoreEnabled', '==', true)
+      .get();
+
+    console.log(`[Niche Discovery] Found ${usersSnapshot.size} users with App Store enabled`);
+
+    // If no users have explicitly enabled, check autoGenerationEnabled users
+    let users = usersSnapshot.docs;
+    if (users.length === 0) {
+      const autoUsersSnapshot = await admin.firestore()
+        .collection('users')
+        .where('autoGenerationEnabled', '==', true)
+        .get();
+      users = autoUsersSnapshot.docs;
+      console.log(`[Niche Discovery] Fallback: Found ${users.length} users with auto-generation enabled`);
+    }
+
+    const results: { userId: string; success: boolean; ideasSaved: number; error?: string }[] = [];
+
+    for (const userDoc of users) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+
+      console.log(`[Niche Discovery] Processing user: ${userId}`);
+
+      // Run App Store pipeline only
+      const config: GenerationConfig = {
+        userId,
+        sources: ['appstore'], // Only App Store source
+        ideasPerRun: Math.min(Math.max(userData.nicheIdeasPerRun || 5, 1), 10),
+        categories: userData.appStoreCategories || undefined,
+      };
+
+      try {
+        const result = await runGenerationPipeline(config, 'scheduled');
+        results.push({
+          userId,
+          success: result.success,
+          ideasSaved: result.ideasSaved,
+          error: result.errors.length > 0 ? result.errors.join(', ') : undefined,
+        });
+        console.log(`[Niche Discovery] User ${userId}: ${result.success ? 'success' : 'failed'}, ${result.ideasSaved} ideas saved`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.push({
+          userId,
+          success: false,
+          ideasSaved: 0,
+          error: errorMessage,
+        });
+        console.error(`[Niche Discovery] User ${userId} failed:`, error);
+        // Continue with other users
+      }
+    }
+
+    // Log summary
+    const successful = results.filter(r => r.success).length;
+    const totalIdeas = results.reduce((sum, r) => sum + r.ideasSaved, 0);
+    console.log(`[Niche Discovery] Complete: ${successful}/${results.length} users successful, ${totalIdeas} total niche ideas generated`);
   }
 );

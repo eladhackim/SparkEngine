@@ -4,7 +4,7 @@
  */
 
 import * as admin from 'firebase-admin';
-import { ScoredIdea, GenerationRunDocument, GenerationSource, GenerationTrigger } from '../../types/pipeline.js';
+import { ScoredIdea, GenerationRunDocument, GenerationSource, GenerationTrigger, AINativeIdea } from '../../types/pipeline.js';
 
 /**
  * Saves scored ideas to Firestore in a batch operation
@@ -79,6 +79,89 @@ export async function saveIdeas(
 }
 
 /**
+ * Saves AI-native ideas from friction analysis to Firestore
+ * @param userId - User ID to save ideas for
+ * @param ideas - Array of AI-native ideas to save
+ * @param runId - Generation run ID for linking
+ * @returns Promise<number> - Number of ideas saved
+ */
+export async function saveAINativeIdeas(
+  userId: string,
+  ideas: AINativeIdea[],
+  runId: string
+): Promise<number> {
+  const db = admin.firestore();
+  const batch = db.batch();
+  let savedCount = 0;
+
+  console.log(`[Persistence] Saving ${ideas.length} AI-native ideas for user ${userId}...`);
+
+  for (const idea of ideas) {
+    const ideaRef = db.collection('users').doc(userId).collection('ideas').doc();
+
+    batch.set(ideaRef, {
+      // Basic info
+      name: idea.name,
+      brief: idea.brief,
+      category: idea.category,
+      tags: idea.tags || [],
+      status: 'new',
+      source: 'friction-derived',
+
+      // Display label for UI ribbon
+      displayLabel: idea.displayLabel || 'App Store Insight',
+      labelColor: idea.labelColor || 'purple',
+      labelIcon: idea.labelIcon || 'store',
+
+      // Scores
+      businessPotential: idea.businessPotential,
+      developmentComplexity: idea.developmentComplexity,
+      timeToMarket: idea.timeToMarket,
+      competitionLevel: idea.competitionLevel,
+      riskLevel: idea.riskLevel,
+      compositeScore: idea.compositeScore,
+      tier: idea.tier,
+
+      // Optional scores (null for AI-generated)
+      trendAlignment: null,
+      founderMarketFit: null,
+      growthPotential: null,
+      defensibility: null,
+      capitalEfficiency: null,
+
+      // AI content
+      strengths: idea.strengths || [],
+      risks: idea.risks || [],
+      businessPlan: idea.businessPlan || null,
+      elevatorPitch: idea.elevatorPitch || null,
+
+      // AI-native specific fields
+      frictionSource: idea.frictionSource || null,
+      aiApproach: idea.aiApproach || null,
+      usp: idea.usp || null,
+      technicalOverview: idea.technicalOverview || null,
+
+      // Metadata
+      sourceSignals: idea.sourceSignals || [],
+      generationRunId: runId,
+      scoringMethod: 'ai-friction-analysis',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      noteCount: 0,
+      viewedAt: null,
+      tradeoffFlags: calculateTradeoffFlags(idea),
+    });
+
+    savedCount++;
+  }
+
+  await batch.commit();
+  console.log(`[Persistence] Saved ${savedCount} AI-native ideas`);
+
+  return savedCount;
+}
+
+/**
  * Logs a generation run to Firestore
  * @param userId - User ID
  * @param metadata - Run metadata
@@ -95,6 +178,13 @@ export async function logGenerationRun(
     errors: string[];
     trigger?: GenerationTrigger;
     stages?: GenerationRunDocument['stages'];
+    pipelineType?: 'trend-based' | 'niche-discovery';
+    appStoreMetrics?: {
+      appsAnalyzed: number;
+      reviewsProcessed: number;
+      frictionPointsFound: number;
+      nichesAnalyzed: string[];
+    };
   }
 ): Promise<void> {
   const db = admin.firestore();
@@ -117,6 +207,16 @@ export async function logGenerationRun(
 
   if (metadata.stages) {
     runDoc.stages = metadata.stages;
+  }
+
+  // Add pipeline type if provided
+  if (metadata.pipelineType) {
+    (runDoc as Record<string, unknown>).pipelineType = metadata.pipelineType;
+  }
+
+  // Add App Store metrics if provided
+  if (metadata.appStoreMetrics) {
+    (runDoc as Record<string, unknown>).appStoreMetrics = metadata.appStoreMetrics;
   }
 
   await db
