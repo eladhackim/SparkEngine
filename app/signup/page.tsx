@@ -8,37 +8,50 @@ import { Sparkles, Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { signUpWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 
-export default function LoginPage() {
+export const dynamic = 'force-dynamic';
+
+export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
-      toast.error('Please enter email and password');
+    if (!email || !password || !confirmPassword) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
 
     setLoading(true);
     try {
-      await signInWithEmail(email, password);
-      toast.success('Welcome back!');
-      router.push('/');
+      await signUpWithEmail(email, password);
+      toast.success('Account created! Welcome to Spark');
+      router.push('/dashboard');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to sign in';
+      const message = error instanceof Error ? error.message : 'Failed to create account';
       toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     setGoogleLoading(true);
     try {
       // On mobile: popup returns user directly
@@ -46,12 +59,12 @@ export default function LoginPage() {
       const user = await signInWithGoogle();
       if (user) {
         // Mobile popup flow - user is already authenticated
-        toast.success('Welcome!');
-        router.push('/');
+        toast.success('Welcome to Spark!');
+        router.push('/dashboard');
       }
       // Desktop redirect flow - page will reload
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
+      const message = error instanceof Error ? error.message : 'Failed to sign up with Google';
       toast.error(message);
       setGoogleLoading(false);
     }
@@ -63,14 +76,14 @@ export default function LoginPage() {
         <div className="flex justify-center mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">EngineSpark</span>
+            <span className="text-2xl font-bold">Spark</span>
           </div>
         </div>
-        <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to your account to continue</CardDescription>
+        <CardTitle className="text-2xl">Create an account</CardTitle>
+        <CardDescription>Get started with AI-powered idea generation</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleEmailLogin} className="space-y-4">
+        <form onSubmit={handleEmailSignup} className="space-y-4">
           <div className="space-y-2">
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -89,9 +102,22 @@ export default function LoginPage() {
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder="Password (min 8 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="pl-10"
+                disabled={loading || googleLoading}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="password"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 className="pl-10"
                 disabled={loading || googleLoading}
               />
@@ -101,10 +127,10 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Creating account...
               </>
             ) : (
-              'Sign in'
+              'Create account'
             )}
           </Button>
         </form>
@@ -121,7 +147,7 @@ export default function LoginPage() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={handleGoogleLogin}
+          onClick={handleGoogleSignup}
           disabled={loading || googleLoading}
         >
           {googleLoading ? (
@@ -156,10 +182,13 @@ export default function LoginPage() {
       </CardContent>
       <CardFooter className="flex flex-col space-y-2">
         <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-primary hover:underline font-medium">
-            Sign up
+          Already have an account?{' '}
+          <Link href="/login" className="text-primary hover:underline font-medium">
+            Sign in
           </Link>
+        </p>
+        <p className="text-center text-xs text-muted-foreground">
+          By creating an account, you agree to our Terms of Service and Privacy Policy.
         </p>
       </CardFooter>
     </Card>

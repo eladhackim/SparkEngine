@@ -1,5 +1,5 @@
 /**
- * Idea Forge Pipeline Types
+ * Spark Pipeline Types
  * Core type definitions for the AI-powered idea generation pipeline
  */
 

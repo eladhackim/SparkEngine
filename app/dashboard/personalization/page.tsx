@@ -502,7 +502,7 @@ export default function PersonalizationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/">
+          <Link href="/dashboard">
             <Button variant="ghost" size="icon-sm">
               <ArrowLeftIcon className="size-4" />
             </Button>

@@ -33,9 +33,9 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 sm:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-semibold">
+        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <Sparkles className="h-6 w-6 text-primary" />
-          <span className="hidden sm:inline-block">EngineSpark</span>
+          <span className="hidden sm:inline-block">Spark</span>
         </Link>
 
         {/* User Menu */}
@@ -66,7 +66,7 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/personalization/')}>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/personalization')}>
                 <Settings className="mr-2 h-4 w-4" />
                 Personalization
               </DropdownMenuItem>

@@ -2,13 +2,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Providers } from '@/app/providers';
 import { useAuth } from '@/providers/auth-provider';
 import { Header } from '@/components/layout/header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SelectedIdeaProvider } from '@/providers/selected-idea-provider';
 import { IdeaDetailSheet } from '@/components/ideas/idea-detail-sheet';
 
-export default function DashboardLayout({
+// Force dashboard to be dynamic (client-side only, no pre-rendering)
+export const dynamic = 'force-dynamic';
+
+function DashboardContent({
   children,
 }: {
   children: React.ReactNode;
@@ -48,13 +51,23 @@ export default function DashboardLayout({
   }
 
   return (
-    <SelectedIdeaProvider>
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 container px-4 sm:px-8 py-8">{children}</main>
-        {/* Detail sheet for viewing idea details */}
-        <IdeaDetailSheet />
-      </div>
-    </SelectedIdeaProvider>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1 container px-4 sm:px-8 py-8">{children}</main>
+      {/* Detail sheet for viewing idea details */}
+      <IdeaDetailSheet />
+    </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Providers>
+      <DashboardContent>{children}</DashboardContent>
+    </Providers>
   );
 }

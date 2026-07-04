@@ -1,5 +1,5 @@
 /**
- * Idea Forge Cloud Functions
+ * Spark Cloud Functions
  * Main entry point - exports all Cloud Functions
  */
 
