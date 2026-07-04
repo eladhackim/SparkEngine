@@ -1,5 +1,5 @@
 /**
- * User-related type definitions for Idea Forge
+ * User-related type definitions for Spark
  */
 
 import type { DataSource } from './generation';

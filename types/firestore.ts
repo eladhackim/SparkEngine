@@ -1,5 +1,5 @@
 /**
- * Firestore Type Definitions for Idea Forge
+ * Firestore Type Definitions for Spark
  *
  * This file contains all TypeScript interfaces for Firestore documents.
  * Based on the schema defined in docs/technical/firestore-schema.md
